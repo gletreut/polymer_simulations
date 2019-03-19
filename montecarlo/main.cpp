@@ -59,7 +59,7 @@ int main(int argc, char *argv[]){
 
 	convert.clear();
 	convert.str("");
-	convert << "pol.dat";
+	convert << "pol.xyz";
   pathtooutput = convert.str();
 	fpol.open(pathtooutput.c_str());
 	fpol << left;
@@ -88,7 +88,8 @@ int main(int argc, char *argv[]){
 			cout << setw(5) << "i=" << setw(10) << i;
 			cout << setw(5) << "E=" << setw(20) << pol.E << endl;
 
-			fpol << setw(10) << "step" << setw(10) << i << endl;
+			fpol << setw(10) << pol.N << endl;
+			fpol << "Atoms. Timestep:" << setw(10) << i << endl;
 			pol.print_current(fpol);
 		}
 	}

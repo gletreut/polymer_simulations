@@ -143,7 +143,7 @@ void Polymer::print_current(ostream &mystream){
 		mystream << setw(20) << xyz[i][2];
 		mystream << endl;
 	}
-	mystream << endl;
+	//mystream << endl;
 
 	return;
 }
