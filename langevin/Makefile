@@ -1,7 +1,19 @@
 CC = g++
+LINLIBS = GSL
 #CFLAGS = -std=c++11 -O3 -Wall
-CFLAGS = -std=c++11 -O3
-LDLIBS = -lgsl -lm
+ifeq ($(LINLIBS), LAPACK)
+CFLAGS = -std=c++11 -O3 -DLAPACK
+#LDLIBS = -lgsl -lsbtk -llapacke -lcblas -llapack -lblas -lgfortran -lm
+LDLIBS = -lgsl -llapacke -lcblas -llapack -lblas -lgfortran -lm
+else ifeq ($(LINLIBS), MKL)
+CFLAGS = -std=c++11 -O3 -DMKL
+LDLIBS = -lgsl -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm
+#source /opt/intel/mkl/bin/mklvars.sh intel64
+else
+CFLAGS = -std=c++11 -O3 -DGSL
+LDLIBS = -lgsl -lgslcblas -lm
+endif
+
 LDFLAGS =
 SRC = main.cpp model.cpp utils.cpp
 OBJS = $(SRC:.cpp=.o)
