@@ -37,8 +37,6 @@ class LangevinObject {
     virtual ~LangevinObject();
 
     /* methods */
-    virtual void compute_energy()=0; // energy
-    virtual void deriv(double **x, double **v, double **dxdt, double **dvdt)=0;   // compute derivatives
     virtual void update()=0; // update object
     void dump_conf(std::ostream &mystream);
     void dump_thermo(std::ostream &mystream);
