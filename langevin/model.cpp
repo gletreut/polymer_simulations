@@ -15,48 +15,59 @@ using namespace std;
 //****************************************************************************
 //* LangevinSimulation
 //****************************************************************************
-LangevinSimulation::LangevinSimulation(size_t itermax, double temp, double dt) :
-  m_itermax(itermax), m_temp(temp), m_dt(dt) {
-  m_s2dt = sqrt(2.*m_dt);
-}
-
-LangevinSimulation::~LangevinSimulation(){
-}
-
-void
-LangevinSimulation::update() {
-  /*
-   * Update all objects
-   */
-  for (vector<LangevinObject>::iterator it=m_objs.begin(); it != m_objs.end(); ++it){
-    it->update();
-  }
-  return;
-}
+//LangevinSimulation::LangevinSimulation(size_t itermax, double temp, double dt) :
+//  m_itermax(itermax), m_temp(temp), m_dt(dt) {
+//  m_s2dt = sqrt(2.*m_dt);
+//}
+//
+//LangevinSimulation::~LangevinSimulation(){
+//}
+//
+//void
+//LangevinSimulation::update() {
+//  /*
+//   * Update all objects
+//   */
+//  for (vector<MDWorld>::iterator it=m_objs.begin(); it != m_objs.end(); ++it){
+//    it->update();
+//  }
+//  return;
+//}
 
 //****************************************************************************
-//* LangevinObject
+//* MDWorld
 //****************************************************************************
-LangevinObject::LangevinObject(size_t npart) : m_npart(npart) {
+MDWorld::MDWorld(size_t npart) : m_npart(npart) {
   /* initializations */
-  m_mass = gsl_vector_calloc(m_npart);
-  gsl_vector_set_all(m_mass, 1.0);
+  m_mass = 1.0;
+  m_temp = 1.0;
+  m_energy_pot=0.;
+  m_energy_kin=0.;
+
   m_x = gsl_matrix_calloc(m_npart, 3);
   gsl_matrix_set_all(m_x, 0.0);
   m_v = gsl_matrix_calloc(m_npart, 3);
   gsl_matrix_set_all(m_v, 0.0);
-  m_energy_pot=0.;
-  m_energy_kin=0.;
+  m_forces = gsl_matrix_calloc(m_npart, 3);
+  gsl_matrix_set_all(m_forces, 0.0);
 }
 
-LangevinObject::~LangevinObject() {
-  gsl_vector_free(m_mass);
+MDWorld::~MDWorld() {
   gsl_matrix_free(m_x);
   gsl_matrix_free(m_v);
+  gsl_matrix_free(m_forces);
 }
 
+void MDWorld::update_energy_forces(){
+  /*
+   * compute all forces
+   */
+
+  cout << "Need to implement the force call!" << endl;
+  return;
+}
 //void
-//LangevinObject::dump_thermo(ostream &mystream){
+//MDWorld::dump_thermo(ostream &mystream){
 //  /*
 //   * Dump thermodynamic quantities.
 //   */
@@ -69,13 +80,13 @@ LangevinObject::~LangevinObject() {
 //}
 //
 //void
-//LangevinObject::dump_conf(ostream &mystream){
+//MDWorld::dump_conf(ostream &mystream){
 //  /*
 //   * Dump configuration
 //   */
 //
 //	if (m_npart == 0)
-//		throw invalid_argument("LangevinObject is empty!");
+//		throw invalid_argument("MDWorld is empty!");
 //
 //  mystream << left << dec << fixed << setprecision(8) << showpos;
 //

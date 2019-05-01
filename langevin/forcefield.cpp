@@ -1,5 +1,7 @@
 #include "forcefield.h"
 
+using namespace std;
+
 //****************************************************************************
 // PolymerFENE
 //****************************************************************************
@@ -25,7 +27,7 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *force){
    */
 
   size_t n;
-  double r,fr,x,x2, x6,x12,fnorm;
+  double r,fr,y,y2, y6,y12,fnorm;
   gsl_vector *bond(0);
 
   // initialize
@@ -36,7 +38,7 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *force){
   //gsl_matrix_set_all(force, 0.0);
 
   // iterate over the bonds (r_\{i+1\} - r_i)
-  for (size_t i=m_offset; i<N-1; i++){
+  for (size_t i=m_offset; i<m_N-1; i++){
     n = m_offset + i;
     gsl_vector_view vn = gsl_matrix_row(x, n);
     gsl_vector_view vnp = gsl_matrix_row(x, n+1);
@@ -46,10 +48,10 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *force){
     linalg_daxpy(-1., &vn.vector, bond);
     r = linalg_dnrm2(bond);
     fr = r/m_rc;
-    x = m_sigma/r;
-    x2 = x*x;
-    x6 = x2*x2*x2;
-    x12 = x6*x6;
+    y = m_sigma/r;
+    y2 = y*y;
+    y6 = y2*y2*y2;
+    y12 = y6*y6;
 
     // check length of bond
     if ( !(fr < 1.) ){
@@ -62,20 +64,20 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *force){
     // energy
     *u += m_pref*log(1.0-fr*fr);          // fene contribution
     if ( fabs(r) < m_rc_LJ)
-      *u += m_4eps*(x12-x6) + m_eps;      // LJ contribution
+      *u += m_4eps*(y12-y6) + m_eps;      // LJ contribution
 
     // forces
     //  FENE
     gsl_vector_view fn = gsl_matrix_row(force, n);
     gsl_vector_view fnp = gsl_matrix_row(force, n+1);
     fnorm = m_ke / (1.0 - fr*fr);
-    gsl_linalg_daxpy(-fnorm, bond, &fn.vector);
-    gsl_linalg_daxpy(fnorm, bond, &fnp.vector);
+    linalg_daxpy(-fnorm, bond, &fn.vector);
+    linalg_daxpy(fnorm, bond, &fnp.vector);
     //  LJ
     if ( fabs(r) < m_rc_LJ) {
-      fnorm = m_48eps / (r*r) * (x12-0.5*x6);
-      gsl_linalg_daxpy(-fnorm, bond, &fn.vector);
-      gsl_linalg_daxpy(fnorm, bond, &fnp.vector);
+      fnorm = m_48eps / (r*r) * (y12-0.5*y6);
+      linalg_daxpy(-fnorm, bond, &fn.vector);
+      linalg_daxpy(fnorm, bond, &fnp.vector);
     }
   }
 

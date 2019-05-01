@@ -15,7 +15,7 @@ LDLIBS = -lgsl -lgslcblas -lm
 endif
 
 LDFLAGS =
-SRC = main.cpp model.cpp utils.cpp
+SRC = main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper.cpp
 OBJS = $(SRC:.cpp=.o)
 PROG = ../bin/simu_langevin
 
@@ -29,6 +29,15 @@ main.o: main.cpp utils.h model.h
 
 model.o: model.h model.cpp
 	$(CC) $(CFLAGS) -c model.cpp
+
+forcefield.o: forcefield.h forcefield.cpp
+	$(CC) $(CFLAGS) -c forcefield.cpp
+
+stepper.o: stepper.h stepper.cpp
+	$(CC) $(CFLAGS) -c stepper.cpp
+
+linalg.o: linalg.h linalg.cpp
+	$(CC) $(CFLAGS) -c linalg.cpp
 
 utils.o: utils.h utils.tpp utils.cpp
 	$(CC) $(CFLAGS) -c utils.cpp
