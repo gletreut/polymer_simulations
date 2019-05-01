@@ -23,14 +23,15 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 
-class LangevinObject {
+class MDWorld {
 	public:
     /* attributes */
     size_t m_npart, m_npartmax;
-    gsl_vector *m_mass;
-    gsl_matrix *m_x;   // positions
-    gsl_matrix *m_v;   // velocities
+    double m_mass;
     double m_energy_pot, m_energy_kin;
+    gsl_matrix *m_x;        // positions
+    gsl_matrix *m_v;        // velocities
+    gsl_matrix *m_forces;   // forces
 
     /* constructor / destructor */
     LangevinObject(size_t npart);
