@@ -38,8 +38,6 @@ class MDWorld {
     virtual ~LangevinObject();
 
     /* methods */
-    virtual void compute_energy()=0; // energy
-    virtual void deriv(const gsl_matrix *x, const gsl_matrix *v, gsl_matrix *dxdt,  gsl_matrix *dvdt)=0;   // compute derivatives
     virtual void update()=0; // update object
     void dump_conf(std::ostream &mystream);
     void dump_thermo(std::ostream &mystream);
