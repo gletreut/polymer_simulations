@@ -37,10 +37,12 @@ using namespace std;
 //****************************************************************************
 //* MDWorld
 //****************************************************************************
-MDWorld::MDWorld(size_t npart) : m_npart(npart) {
+MDWorld::MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core) :
+  m_npart(npart), m_lx(lx), m_ly(ly), m_lz(lz), m_sig_hard_core(sig_hard_core) {
   /* initializations */
   m_mass = 1.0;
   m_temp = 1.0;
+  m_sig_hard_core = 1.0;
   m_energy_pot=0.;
   m_energy_kin=0.;
 
@@ -56,6 +58,108 @@ MDWorld::~MDWorld() {
   gsl_matrix_free(m_x);
   gsl_matrix_free(m_v);
   gsl_matrix_free(m_forces);
+}
+
+void MDWorld::init_positions(){
+  /*
+   * Initialize positions
+   */
+
+  size_t counter;
+  size_t nx, ny, nz;
+  double delta;
+  double x,y,z;
+
+  delta = m_sig_hard_core*pow(2.,1./6);
+  nx = m_lx/delta;
+  ny = m_ly/delta;
+  nz = m_lz/delta;
+
+  counter = 0;
+  for (size_t ix = 1; ix < nx; ++nx){
+    x = -0.5*m_lx + ix*delta;
+    for (size_t iy = 1; iy < ny; ++ny){
+      y = -0.5*m_ly + iy*delta;
+      for (size_t iz = 1; iz < nz; ++nz){
+        z = -0.5*m_lz + iz*delta;
+        gsl_matrix_set(m_x, counter, 0, x);
+        gsl_matrix_set(m_x, counter, 1, y);
+        gsl_matrix_set(m_x, counter, 2, z);
+        counter += 1;
+
+        if (counter == m_npart)
+          break;
+      }
+    }
+  }
+
+  if (counter < m_npart) {
+    throw runtime_error("Box is too small to position all particles on a lattice!");
+  }
+
+  return;
+}
+
+void MDWorld::init_velocities(gsl_rng *rng){
+  /*
+   * Initialize velocities
+   */
+  // declarations
+  double vxm, vym, vzm, vsqm;
+  double vx, vy, vz;
+  gsl_vector *vm(0);
+  double fs;
+
+  // initializations
+  vxm = 0.;
+  vym = 0.;
+  vzm = 0.;
+  vsqm = 0.;
+  vm = gsl_vector_calloc(3);
+
+  // random velocities
+  for (size_t n=0; n<m_npart; ++n){
+    vx = gsl_rng_uniform(rng);
+    vy = gsl_rng_uniform(rng);
+    vz = gsl_rng_uniform(rng);
+    gsl_matrix_set(m_v, n, 0, vx);
+    gsl_matrix_set(m_v, n, 1, vy);
+    gsl_matrix_set(m_v, n, 2, vz);
+
+    // update average velocity
+    vxm += vx;
+    vym += vy;
+    vzm += vz;
+
+    // update average square velocity
+    vsqm += vx*vx + vy*vy + vz*vz;
+  }
+
+  // compute mean velocity
+  vxm /= m_npart;
+  vym /= m_npart;
+  vzm /= m_npart;
+  gsl_vector_set(vm, 0, vxm);
+  gsl_vector_set(vm, 1, vym);
+  gsl_vector_set(vm, 2, vzm);
+
+  // compute variance
+  vsqm /= m_npart;
+  vsqm -= (vxm*vxm + vym*vym + vzm*vzm);  // var = <v^2> - <v>^2
+  fs = sqrt(3.*m_temp / vsqm);
+
+  // shift and rescale velocities
+  for (size_t n=0; n<m_npart; ++n){
+    gsl_vector_view v = gsl_matrix_row(m_v, n);
+    // shift
+    linalg_daxpy(-1., vm, &v.vector);
+
+    // rescale
+    linalg_dscal(fs, &v.vector);
+  }
+
+  // exit
+  gsl_vector_free(vm);
 }
 
 void MDWorld::update_energy_forces(){

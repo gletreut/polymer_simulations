@@ -24,7 +24,7 @@ all: $(PROG)
 $(PROG): $(OBJS)
 	 $(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS) $(LDLIBS)
 
-main.o: main.cpp utils.h model.h
+main.o: main.cpp utils.h linalg.h forcefield.h model.h stepper.h global.h
 	$(CC) $(CFLAGS) -c main.cpp
 
 model.o: model.h model.cpp

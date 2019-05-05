@@ -26,6 +26,7 @@
 
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
+#include <gsl/gsl_rng.h>
 
 #include "forcefield.h"
 
@@ -33,8 +34,10 @@ class MDWorld {
 	public:
     /* attributes */
     size_t m_npart, m_npartmax;
+    double m_lx, m_ly, m_lz;                  // dimensions of the box
     double m_temp;
     double m_mass;
+    double m_sig_hard_core;
     double m_energy_pot, m_energy_kin;
     gsl_vector_uint *m_mobile;        // vector storing the status of one particle (mobile:1 or fixed:0)
     gsl_matrix *m_x;                  // positions
@@ -43,13 +46,13 @@ class MDWorld {
     std::vector<ForceField*> ffields; // list of active force fields (minus gradient of positional potential)
 
     /* constructor / destructor */
-    MDWorld(size_t npart);
+    MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core);
     virtual ~MDWorld();
 
     /* methods */
     // initiation methods
     void init_positions();
-    void init_velocities();
+    void init_velocities(gsl_rng *rng);
 
     // update methods
     //void update_positions();

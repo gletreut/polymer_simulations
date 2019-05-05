@@ -20,16 +20,29 @@
 #include <limits>
 #include <map>
 
-#include "model.h"
+// external library
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+#include <gsl/gsl_vector.h>
+
+// local library
+#include "global.h"
 #include "utils.h"
-//#include "geometry.cpp"
+#include "linalg.h"
+#include "model.h"
+#include "stepper.h"
 
 using namespace std;
 using namespace utils;
 
 //** GLOBAL
 double macheps=std::numeric_limits<double>::epsilon();
-vector<string> required_parameters = vector<string>({"length_birth","length_div"});
+vector<string> required_parameters = vector<string>({"lx", "ly", "lz", "eps_LJ","npart_max", "dt", "itermax", "idump_thermo", "idump_thermo"});
+/* random number generator type */
+const gsl_rng_type* RDT = gsl_rng_ranlxs1;
+//const gsl_rng_type* RDT = gsl_rng_mt19937;
+const size_t seed = 123;
+
 
 //** FUNCTION
 void check_params_keys(map<string,double> myparams, vector<string> list);
@@ -42,6 +55,9 @@ int main(int argc, char *argv[]){
 	ifstream fin;
 	ofstream fpol,fen;
 	map<string,double> params;
+  gsl_rng *rng(0);
+
+  MDWorld *world(0);
 	double dt, T, b, lp;
 	size_t iter, idump, N;
 
@@ -76,11 +92,28 @@ int main(int argc, char *argv[]){
 	iter=params["iter"];      // number of iterations
 	idump=params["idump"];    // dump interval
 	dt=params["dt"];          // integration time step
+
 	T=params["T"];            // temperature
 	b=params["b"];            // bond length
 	lp=params["lp"];          // persistence length
 	N=params["N"];            // number of monomers
 
+  /* initialize random number generator */
+  rng = gsl_rng_alloc(RDT);
+  gsl_rng_set(rng, seed);
+
+  /* initialize MDWorld */
+  world = new MDWorld(params["npart"], params["lx"], params["ly"], params["lz"], params["sig_hard_core"]);
+
+  /* initialize MDStepper */
+
+  /* initialize force fields */
+
+  /* initialize simulation */
+  //init_positions();
+  //init_velocities(rng);
+
+  /* integration */
 //-----------------------------------------------
 //	INTEGRATION
 //-----------------------------------------------
@@ -112,6 +145,8 @@ int main(int argc, char *argv[]){
 //	EXIT
 //-----------------------------------------------
 	cout << "normal exit" << endl;
+  delete world;
+  gsl_rng_free(rng);
 	return 0;
 }
 
