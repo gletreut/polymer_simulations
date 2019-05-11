@@ -15,6 +15,9 @@
 #include <vector>
 #include <map>
 
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+
 namespace utils {
 	std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
 	std::vector<std::string> split(const std::string &s, char delim);
@@ -31,6 +34,8 @@ namespace utils {
   template<typename T>
   void print_map(std::ostream &mystream, std::map<std::string,T> &params);
 
+  void print_vector(std::ostream &mystream, gsl_vector *v);
+  void print_matrix(std::ostream &mystream, gsl_matrix *m);
 };
 
 // include template definitions

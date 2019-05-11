@@ -22,6 +22,32 @@ vector<string> utils::split(const string &s, char delim) {
 		    return elems;
 }
 
+void utils::print_vector(std::ostream &mystream, gsl_vector *v){
+  mystream << left << dec << fixed;
+
+  for (size_t i=0; i<v->size; ++i){
+    mystream << noshowpos << setprecision(0) << setw(10) << i;
+    mystream << showpos << setprecision(8) << setw(18) << gsl_vector_get(v,i);
+    mystream << endl;
+  }
+
+  return;
+}
+
+void utils::print_matrix(std::ostream &mystream, gsl_matrix *m){
+  mystream << left << dec << fixed;
+
+  for (size_t i=0; i<m->size1; ++i){
+    for (size_t j=0; j<m->size2; ++j){
+      mystream << noshowpos << setprecision(0) << setw(10) << i;
+      mystream << noshowpos << setprecision(0) << setw(10) << j;
+      mystream << showpos << setprecision(8) << setw(18) << gsl_matrix_get(m,i,j);
+      mystream << endl;
+    }
+  }
+
+  return;
+}
 //template <typename T>
 //struct VectorSorter {
 //	vector<T> &myvec;

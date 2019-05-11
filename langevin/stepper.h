@@ -16,19 +16,21 @@
 #include <gsl/gsl_vector.h>
 
 #include "linalg.h"
+#include "utils.h"
 #include "model.h"
 
 class MDStepper {
   public:
     /* attributes */
     double m_dt;
+    double m_gam;
     double m_mass_i;
     MDWorld *m_world;
     gsl_matrix *m_x, *m_v, *m_f;
 
     /* constructor / destructor */
-    MDStepper(MDWorld *world, double dt);
-    ~MDStepper();
+    MDStepper(MDWorld *world, double dt, double gam=1.0);
+    virtual ~MDStepper();
 
     /* methods */
     virtual void call_forces();
@@ -44,7 +46,7 @@ class MDStepper_VVerlet: public MDStepper {
     double m_pref_force;
 
     /* constructor / destructor */
-    MDStepper_VVerlet(MDWorld *world, double dt);
+    MDStepper_VVerlet(MDWorld *world, double dt, double gam=1.0);
     ~MDStepper_VVerlet();
 
     /* methods */

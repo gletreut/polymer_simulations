@@ -29,6 +29,7 @@
 #include <gsl/gsl_rng.h>
 
 #include "forcefield.h"
+#include "utils.h"
 
 class MDWorld {
 	public:
@@ -42,8 +43,8 @@ class MDWorld {
     gsl_vector_uint *m_mobile;        // vector storing the status of one particle (mobile:1 or fixed:0)
     gsl_matrix *m_x;                  // positions
     gsl_matrix *m_v;                  // velocities
-    gsl_matrix *m_forces;             // forces
-    std::vector<ForceField*> ffields; // list of active force fields (minus gradient of positional potential)
+    gsl_matrix *m_forces, *m_forces_tp;             // forces
+    std::vector<ForceField*> m_ffields; // list of active force fields (minus gradient of positional potential)
 
     /* constructor / destructor */
     MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core);
@@ -58,9 +59,11 @@ class MDWorld {
     //void update_positions();
     //void update_velocities();
     void update_energy_forces();
+    void update_energy_kinetics();
 
     // dump methods
-    void dump_conf(std::ostream &mystream);
+    void dump_pos(std::ostream &mystream, bool index=true, bool velocities=false, bool forces=false);
+    void dump_vel(std::ostream &mystream, bool index=true);
     void dump_thermo(std::ostream &mystream);
 };
 

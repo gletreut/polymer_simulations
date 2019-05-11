@@ -39,6 +39,11 @@ using namespace std;
 //****************************************************************************
 MDWorld::MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core) :
   m_npart(npart), m_lx(lx), m_ly(ly), m_lz(lz), m_sig_hard_core(sig_hard_core) {
+  /* check */
+  if (m_npart == 0){
+    throw invalid_argument("Number of particles must be larger than zero!");
+  }
+
   /* initializations */
   m_mass = 1.0;
   m_temp = 1.0;
@@ -52,12 +57,23 @@ MDWorld::MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_
   gsl_matrix_set_all(m_v, 0.0);
   m_forces = gsl_matrix_calloc(m_npart, 3);
   gsl_matrix_set_all(m_forces, 0.0);
+  m_forces_tp = gsl_matrix_calloc(m_npart, 3);
+  gsl_matrix_set_all(m_forces_tp, 0.0);
+
+  m_ffields.clear();
 }
 
 MDWorld::~MDWorld() {
   gsl_matrix_free(m_x);
   gsl_matrix_free(m_v);
   gsl_matrix_free(m_forces);
+  gsl_matrix_free(m_forces_tp);
+
+  for (vector<ForceField*>::iterator it=m_ffields.begin(); it!=m_ffields.end(); ++it){
+    if (*it != nullptr){
+      delete (*it);
+    }
+  }
 }
 
 void MDWorld::init_positions(){
@@ -76,11 +92,11 @@ void MDWorld::init_positions(){
   nz = m_lz/delta;
 
   counter = 0;
-  for (size_t ix = 1; ix < nx; ++nx){
+  for (size_t ix = 1; ix < nx; ++ix){
     x = -0.5*m_lx + ix*delta;
-    for (size_t iy = 1; iy < ny; ++ny){
+    for (size_t iy = 1; iy < ny; ++iy){
       y = -0.5*m_ly + iy*delta;
-      for (size_t iz = 1; iz < nz; ++nz){
+      for (size_t iz = 1; iz < nz; ++iz){
         z = -0.5*m_lz + iz*delta;
         gsl_matrix_set(m_x, counter, 0, x);
         gsl_matrix_set(m_x, counter, 1, y);
@@ -90,7 +106,11 @@ void MDWorld::init_positions(){
         if (counter == m_npart)
           break;
       }
+      if (counter == m_npart)
+        break;
     }
+    if (counter == m_npart)
+      break;
   }
 
   if (counter < m_npart) {
@@ -105,7 +125,7 @@ void MDWorld::init_velocities(gsl_rng *rng){
    * Initialize velocities
    */
   // declarations
-  double vxm, vym, vzm, vsqm;
+  double vxm, vym, vzm, vsqm, vvar;
   double vx, vy, vz;
   gsl_vector *vm(0);
   double fs;
@@ -145,17 +165,24 @@ void MDWorld::init_velocities(gsl_rng *rng){
 
   // compute variance
   vsqm /= m_npart;
-  vsqm -= (vxm*vxm + vym*vym + vzm*vzm);  // var = <v^2> - <v>^2
-  fs = sqrt(3.*m_temp / vsqm);
+  vvar = vsqm - (vxm*vxm + vym*vym + vzm*vzm);  // var = <v^2> - <v>^2
 
   // shift and rescale velocities
-  for (size_t n=0; n<m_npart; ++n){
-    gsl_vector_view v = gsl_matrix_row(m_v, n);
-    // shift
-    linalg_daxpy(-1., vm, &v.vector);
+  if (m_npart == 1){
+    fs = sqrt(3.*m_temp / vsqm);
+      gsl_vector_view v = gsl_matrix_row(m_v, 0);
+      linalg_dscal(fs, &v.vector);
+  }
+  else {
+    fs = sqrt(3.*m_temp / vvar);
+    for (size_t n=0; n<m_npart; ++n){
+      gsl_vector_view v = gsl_matrix_row(m_v, n);
+      // shift
+      linalg_daxpy(-1., vm, &v.vector);
 
-    // rescale
-    linalg_dscal(fs, &v.vector);
+      // rescale
+      linalg_dscal(fs, &v.vector);
+    }
   }
 
   // exit
@@ -166,43 +193,95 @@ void MDWorld::update_energy_forces(){
   /*
    * compute all forces
    */
+  m_energy_pot = 0;
+  gsl_matrix_set_all(m_forces, 0.);
 
-  cout << "Need to implement the force call!" << endl;
+  /* iterate over force fields */
+  for (vector<ForceField*>::iterator it=m_ffields.begin(); it!=m_ffields.end(); ++it){
+      (*it)->energy_force(m_x, &m_energy_pot, m_forces);
+  }
+
   return;
 }
-//void
-//MDWorld::dump_thermo(ostream &mystream){
-//  /*
-//   * Dump thermodynamic quantities.
-//   */
-//
-//  mystream << left << dec;
-//  mystream << setw(10) << setprecision(0) << fixed << noshowpos << m_npart;
-//  mystream << setw(18) << setprecision(8) << scientific << showpos << m_energy_pot;
-//  mystream << setw(18) << setprecision(8) << scientific << showpos << m_energy_kin;
-//  return;
-//}
-//
-//void
-//MDWorld::dump_conf(ostream &mystream){
-//  /*
-//   * Dump configuration
-//   */
-//
-//	if (m_npart == 0)
-//		throw invalid_argument("MDWorld is empty!");
-//
-//  mystream << left << dec << fixed << setprecision(8) << showpos;
-//
-//	for (size_t i=0; i<m_npart;i++){
-//		mystream << setw(10) << i;
-//		mystream << setw(18) << m_x[i][0];
-//		mystream << setw(18) << m_x[i][1];
-//		mystream << setw(18) << m_x[i][2];
-//		mystream << endl;
-//	}
-//  return;
-//}
+
+void MDWorld::update_energy_kinetics(){
+  /*
+   * compute all forces
+   */
+
+  m_energy_kin = 0.5*m_mass*linalg_ddot(m_v, m_v);
+
+  return;
+}
+
+void
+MDWorld::dump_thermo(ostream &mystream){
+  /*
+   * Dump thermodynamic quantities.
+   */
+
+  mystream << left << dec;
+  mystream << setw(10) << setprecision(0) << fixed << noshowpos << m_npart;
+  mystream << setw(18) << setprecision(8) << scientific << showpos << m_energy_pot;
+  mystream << setw(18) << setprecision(8) << scientific << showpos << m_energy_kin;
+  return;
+}
+
+void
+MDWorld::dump_pos(ostream &mystream, bool index, bool velocities, bool forces){
+  /*
+   * Dump configuration
+   */
+
+	if (m_npart == 0)
+		throw invalid_argument("MDWorld is empty!");
+
+  mystream << left << dec << fixed;
+
+	for (size_t i=0; i<m_npart;i++){
+    if (index) {
+      mystream << setw(10) << setprecision(0) << noshowpos << i;
+    }
+		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_x,i,0);
+		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_x,i,1);
+		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_x,i,2);
+    if (velocities) {
+      mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,0);
+      mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,1);
+      mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,2);
+    }
+    if (forces) {
+      mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_forces,i,0);
+      mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_forces,i,1);
+      mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_forces,i,2);
+    }
+		mystream << endl;
+	}
+  return;
+}
+
+void
+MDWorld::dump_vel(ostream &mystream, bool index){
+  /*
+   * Dump configuration
+   */
+
+	if (m_npart == 0)
+		throw invalid_argument("MDWorld is empty!");
+
+  mystream << left << dec << fixed;
+
+	for (size_t i=0; i<m_npart;i++){
+    if (index) {
+      mystream << setw(10) << setprecision(0) << noshowpos << i;
+    }
+		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,0);
+		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,1);
+		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,2);
+		mystream << endl;
+	}
+  return;
+}
 
 //****************************************************************************
 //* Polymer

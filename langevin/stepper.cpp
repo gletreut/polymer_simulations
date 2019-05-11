@@ -11,8 +11,8 @@ using namespace std;
 //****************************************************************************
 // MDStepper
 //****************************************************************************
-MDStepper::MDStepper(MDWorld *world, double dt) :
-  m_world(world), m_dt(dt) {
+MDStepper::MDStepper(MDWorld *world, double dt, double gam) :
+  m_world(world), m_dt(dt), m_gam(gam) {
 
   // copy the reference to world positions, velocities and forces vector
   m_x = m_world->m_x;
@@ -37,12 +37,12 @@ void MDStepper::call_forces(){
 //****************************************************************************
 // MDStepper_VVerlet
 //****************************************************************************
-MDStepper_VVerlet::MDStepper_VVerlet(MDWorld *world, double dt) :
-  MDStepper::MDStepper(world, dt) {
+MDStepper_VVerlet::MDStepper_VVerlet(MDWorld *world, double dt, double gam) :
+  MDStepper::MDStepper(world, dt, gam) {
 
   m_dt_half = 0.5*m_dt;
-  m_gam_m = (1. - m_dt_half);           // 1.-\gamma x dt / 2
-  m_gam_i = 1./(1. + m_dt_half);        // 1./(1.+\gamma x dt / 2)
+  m_gam_m = (1. - m_gam*m_dt_half);           // 1.-\gamma x dt / 2
+  m_gam_i = 1./(1. + m_gam*m_dt_half);        // 1./(1.+\gamma x dt / 2)
   m_pref_force = m_mass_i*m_dt_half;    // 1/M . dt/2
 }
 
@@ -67,3 +67,7 @@ void MDStepper_VVerlet::step() {
 
   return;
 }
+
+MDStepper_VVerlet::~MDStepper_VVerlet(){
+}
+

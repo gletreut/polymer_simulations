@@ -27,12 +27,38 @@
 
 class ForceField {
   /*
-   * Class defining a force field.
+   * Virtual class defining a force field.
    */
-  virtual void energy_force(gsl_matrix *x, double *u, gsl_matrix *force) = 0;
+  public:
+    virtual ~ForceField();
+    virtual void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces) = 0;
 };
 
-class PolymerFENE : ForceField {
+class ConfinmentBox : public ForceField {
+  /*
+   * Class defining a force field representing a box confinment
+   */
+  public:
+    double m_xlo, m_xhi, m_ylo, m_yhi, m_zlo, m_zhi;
+    double m_sigma;     // hard-core distance for LJ
+    double m_eps;       // energy scale for LJ
+
+    /* constructor and destructor */
+    ConfinmentBox(double xlo, double xhi, double ylo, double yhi, double zlo, double zhi, double sigma=1.0, double eps=1.0);
+    ~ConfinmentBox();
+
+    /* methods */
+    double energy_LJ_scal(double r);
+    double force_LJ_scal(double r);
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+
+  private:
+    double m_4eps;
+    double m_fpref;
+    double m_rc_LJ;
+};
+
+class PolymerFENE : public ForceField {
   /*
    * Class defining a polymer force field.
    */
@@ -48,9 +74,10 @@ class PolymerFENE : ForceField {
 
     /* constructor and destructor */
     PolymerFENE(size_t offset, size_t N, double ke=30.0, double rc=1.5, double sigma=1.0, double eps=1.0);
+    ~PolymerFENE();
 
     /* methods */
-    void energy_force(gsl_matrix *x, double *u, gsl_matrix *force);
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 
   private:
     double m_pref;

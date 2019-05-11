@@ -3,6 +3,146 @@
 using namespace std;
 
 //****************************************************************************
+// ForceField
+//****************************************************************************
+ForceField::~ForceField(){
+}
+
+//****************************************************************************
+// ConfinmentBox
+//****************************************************************************
+ConfinmentBox::ConfinmentBox(double xlo, double xhi, double ylo, double yhi, double zlo, double zhi, double sigma, double eps) :
+  m_xlo(xlo),
+  m_xhi(xhi),
+  m_ylo(ylo),
+  m_yhi(yhi),
+  m_zlo(zlo),
+  m_zhi(zhi),
+  m_sigma(sigma),
+  m_eps(eps)
+
+{
+  m_4eps = 4.0*m_eps;
+  m_fpref = 48.0*m_eps / m_sigma;
+  m_rc_LJ = m_sigma*pow(2.,1./6);
+}
+
+ConfinmentBox::~ConfinmentBox(){
+}
+
+double ConfinmentBox::energy_LJ_scal(double r){
+  /*
+   * compute the energy of the  LJ interaction when the algebric
+   * distance is r.
+   */
+
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = m_sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_4eps*(x12 - x6) + m_eps;
+  }
+  else {
+    return 0.0;
+  }
+}
+
+double ConfinmentBox::force_LJ_scal(double r){
+  /*
+   * compute the algebric norm of the LJ force applied when the algebric
+   * distance is r.
+   */
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = m_sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_fpref*x*(x12 - 0.5*x6);
+  }
+  else {
+    return 0.0;
+  }
+}
+
+void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the potential energy and force (minus gradient) produced by a
+   * confinment box
+   */
+
+  size_t N;
+  double rx,ry,rz,r,fnorm;
+  gsl_vector *force(0);
+
+  // initialize
+  N = x->size1;
+  force = gsl_vector_calloc(3);
+
+  // iterate over the positions (r_\{i\})
+  for (size_t i=0; i<N; ++i){
+    gsl_vector_view xi = gsl_matrix_row(x, i);
+    gsl_vector_view fi = gsl_matrix_row(forces, i);
+    rx = gsl_vector_get(&xi.vector,0);
+    ry = gsl_vector_get(&xi.vector,1);
+    rz = gsl_vector_get(&xi.vector,2);
+
+    /* xlo */
+    gsl_vector_set_all(force,0.0);
+    gsl_vector_set(force,0,1.0);  // ex
+    r = rx - m_xlo;
+    *u += energy_LJ_scal(r);
+    fnorm = force_LJ_scal(r);  // algebric norm postive
+    linalg_daxpy(fnorm, force, &fi.vector);
+
+    /* xhi */
+    gsl_vector_set_all(force,0.0);
+    gsl_vector_set(force,0,1.0);  // ex
+    r = rx - m_xhi;
+    *u += energy_LJ_scal(r);
+    fnorm = force_LJ_scal(r);  // algebric norm postive
+    linalg_daxpy(fnorm, force, &fi.vector);
+
+    /* ylo */
+    gsl_vector_set_all(force,0.0);
+    gsl_vector_set(force,1,1.0);  // ey
+    r = ry - m_ylo;
+    *u += energy_LJ_scal(r);
+    fnorm = force_LJ_scal(r);  // algebric norm postive
+    linalg_daxpy(fnorm, force, &fi.vector);
+
+    /* yhi */
+    gsl_vector_set_all(force,0.0);
+    gsl_vector_set(force,1,1.0);  // ey
+    r = ry - m_yhi;
+    *u += energy_LJ_scal(r);
+    fnorm = force_LJ_scal(r);  // algebric norm postive
+    linalg_daxpy(fnorm, force, &fi.vector);
+
+    /* zlo */
+    gsl_vector_set_all(force,0.0);
+    gsl_vector_set(force,2,1.0);  // ez
+    r = rz - m_zlo;
+    *u += energy_LJ_scal(r);
+    fnorm = force_LJ_scal(r);  // algebric norm postive
+    linalg_daxpy(fnorm, force, &fi.vector);
+
+    /* zhi */
+    gsl_vector_set_all(force,0.0);
+    gsl_vector_set(force,2,1.0);  // ez
+    r = rz - m_zhi;
+    *u += energy_LJ_scal(r);
+    fnorm = force_LJ_scal(r);  // algebric norm postive
+    linalg_daxpy(fnorm, force, &fi.vector);
+  }
+
+  /* exit */
+  gsl_vector_free(force);
+  return;
+}
+//****************************************************************************
 // PolymerFENE
 //****************************************************************************
 PolymerFENE::PolymerFENE(size_t offset, size_t N, double ke, double rc, double sigma, double eps) :
@@ -20,8 +160,11 @@ PolymerFENE::PolymerFENE(size_t offset, size_t N, double ke, double rc, double s
 
 }
 
-  /* methods */
-void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *force){
+PolymerFENE::~PolymerFENE(){
+}
+
+/* methods */
+void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   /*
    * Compute the potential energy and force (minus gradient) of a FENE chain.
    */
@@ -35,10 +178,10 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *force){
 
   // set energy and force to zero
   //*u = 0;
-  //gsl_matrix_set_all(force, 0.0);
+  //gsl_matrix_set_all(forces, 0.0);
 
   // iterate over the bonds (r_\{i+1\} - r_i)
-  for (size_t i=m_offset; i<m_N-1; i++){
+  for (size_t i=0; i<m_N-1; ++i){
     n = m_offset + i;
     gsl_vector_view vn = gsl_matrix_row(x, n);
     gsl_vector_view vnp = gsl_matrix_row(x, n+1);
@@ -68,8 +211,8 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *force){
 
     // forces
     //  FENE
-    gsl_vector_view fn = gsl_matrix_row(force, n);
-    gsl_vector_view fnp = gsl_matrix_row(force, n+1);
+    gsl_vector_view fn = gsl_matrix_row(forces, n);
+    gsl_vector_view fnp = gsl_matrix_row(forces, n+1);
     fnorm = m_ke / (1.0 - fr*fr);
     linalg_daxpy(-fnorm, bond, &fn.vector);
     linalg_daxpy(fnorm, bond, &fnp.vector);
