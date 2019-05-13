@@ -128,7 +128,12 @@ int main(int argc, char *argv[]){
   stepper = new MDStepper_VVerlet(world, dt, 0);
 
   /* initialize force fields */
-  ffield = new ConfinmentBox(-0.5*world->m_lx, +0.5*world->m_lx, -0.5*world->m_ly,+0.5*world->m_ly,-0.5*world->m_lz,+0.5*world->m_lz,1.0,1.0);
+  /** confinement **/
+  //ffield = new ConfinmentBox(-0.5*world->m_lx, +0.5*world->m_lx, -0.5*world->m_ly,+0.5*world->m_ly,-0.5*world->m_lz,+0.5*world->m_lz,1.0,1.0);
+  ffield = new ConfinmentSphere(params["radius_conf"],1.0,1.0);
+  world->m_ffields.push_back(ffield);
+  /** polymer **/
+  ffield = new PolymerGaussian(1,4,1.0);
   world->m_ffields.push_back(ffield);
 
   /* initialize simulation */

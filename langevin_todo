@@ -1,8 +1,11 @@
 TODO
 --
 
-o confinment rectangle
-o confinment spherical
-o polymer
+v confinment rectangle
+v confinment spherical
+v polymer Gaussian
 o hard-constraints
+o Brownian Force
+o polymer FENE
+o reloading previous configuration
 o GEM

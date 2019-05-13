@@ -142,6 +142,156 @@ void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   gsl_vector_free(force);
   return;
 }
+
+//****************************************************************************
+// ConfinmentSphere
+//****************************************************************************
+ConfinmentSphere::ConfinmentSphere(double radius, double sigma, double eps) :
+  m_radius(radius),
+  m_sigma(sigma),
+  m_eps(eps)
+
+{
+  m_4eps = 4.0*m_eps;
+  m_fpref = 48.0*m_eps / m_sigma;
+  m_rc_LJ = m_sigma*pow(2.,1./6);
+}
+
+ConfinmentSphere::~ConfinmentSphere(){
+}
+
+double ConfinmentSphere::energy_LJ_scal(double r){
+  /*
+   * compute the energy of the  LJ interaction when the algebric
+   * distance is r.
+   */
+
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = m_sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_4eps*(x12 - x6) + m_eps;
+  }
+  else {
+    return 0.0;
+  }
+}
+
+double ConfinmentSphere::force_LJ_scal(double r){
+  /*
+   * compute the algebric norm of the LJ force applied when the algebric
+   * distance is r.
+   */
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = m_sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_fpref*x*(x12 - 0.5*x6);
+  }
+  else {
+    return 0.0;
+  }
+}
+
+void ConfinmentSphere::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the potential energy and force (minus gradient) produced by a
+   * confinment box
+   */
+
+  size_t N;
+  double rx,ry,rz,r,sint,cosp,sinp,fnorm;
+  gsl_vector *force(0);
+
+  // initialize
+  N = x->size1;
+  force = gsl_vector_calloc(3);
+
+  // iterate over the positions (r_\{i\})
+  for (size_t i=0; i<N; ++i){
+    gsl_vector_view xi = gsl_matrix_row(x, i);
+    gsl_vector_view fi = gsl_matrix_row(forces, i);
+    rx = gsl_vector_get(&xi.vector,0);
+    ry = gsl_vector_get(&xi.vector,1);
+    rz = gsl_vector_get(&xi.vector,2);
+    r = sqrt(rx*rx+ry*ry+rz*rz);
+
+    gsl_vector_set_all(force,0.0);
+    // er
+    gsl_vector_set(force,0,rx/r);
+    gsl_vector_set(force,1,ry/r);
+    gsl_vector_set(force,2,rz/r);
+    // distance
+    r = r - m_radius;
+    *u += energy_LJ_scal(r);
+    fnorm = force_LJ_scal(r);  // algebric norm postive
+    linalg_daxpy(fnorm, force, &fi.vector);
+
+  }
+
+  /* exit */
+  gsl_vector_free(force);
+  return;
+}
+
+//****************************************************************************
+// PolymerGaussian
+//****************************************************************************
+PolymerGaussian::PolymerGaussian(size_t offset, size_t N, double b) :
+  m_offset(offset),
+  m_N(N),
+  m_b(b)
+{
+  /* initialize some parameters */
+  m_ke = 1.5/(m_b*m_b);
+  m_fpref = 2.*m_ke;
+}
+
+PolymerGaussian::~PolymerGaussian(){
+}
+
+void PolymerGaussian::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the potential energy and force (minus gradient) of a Gaussian chain.
+   */
+
+  size_t n;
+  double r;
+  gsl_vector *bond(0);
+
+  // initialize
+  bond = gsl_vector_calloc(3);
+
+  // iterate over the bonds (r_\{i+1\} - r_i)
+  for (size_t i=0; i<m_N-1; ++i){
+    n = m_offset + i;
+    gsl_vector_view vn = gsl_matrix_row(x, n);
+    gsl_vector_view vnp = gsl_matrix_row(x, n+1);
+
+    // compute bond
+    gsl_vector_memcpy(bond, &vnp.vector);
+    linalg_daxpy(-1., &vn.vector, bond);
+    r = linalg_dnrm2(bond);
+
+    // energy
+    *u += m_ke*r*r;
+
+    // forces
+    //  FENE
+    gsl_vector_view fn = gsl_matrix_row(forces, n);
+    gsl_vector_view fnp = gsl_matrix_row(forces, n+1);
+    linalg_daxpy(m_fpref, bond, &fn.vector);
+    linalg_daxpy(-m_fpref, bond, &fnp.vector);
+  }
+
+  /* exit */
+  gsl_vector_free(bond);
+  return;
+}
 //****************************************************************************
 // PolymerFENE
 //****************************************************************************

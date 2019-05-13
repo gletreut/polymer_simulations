@@ -58,6 +58,54 @@ class ConfinmentBox : public ForceField {
     double m_rc_LJ;
 };
 
+class ConfinmentSphere : public ForceField {
+  /*
+   * Class defining a force field representing a spherical confinment
+   */
+  public:
+    double m_radius;
+    double m_sigma;     // hard-core distance for LJ
+    double m_eps;       // energy scale for LJ
+
+    /* constructor and destructor */
+    ConfinmentSphere(double radius, double sigma=1.0, double eps=1.0);
+    ~ConfinmentSphere();
+
+    /* methods */
+    double energy_LJ_scal(double r);
+    double force_LJ_scal(double r);
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+
+  private:
+    double m_4eps;
+    double m_fpref;
+    double m_rc_LJ;
+};
+
+class PolymerGaussian : public ForceField {
+  /*
+   * Class defining a polymer force field.
+   * Gaussian backbone
+   */
+
+  public:
+    /* attributes */
+    size_t m_offset;    // index of first monomer
+    size_t m_N;         // number of monomers
+    double m_b;         // bond length b
+    double m_ke;        // energy / b^2 for FENE bond
+
+    /* constructor and destructor */
+    PolymerGaussian(size_t offset, size_t N, double b);
+    ~PolymerGaussian();
+
+    /* methods */
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+
+  private:
+    double m_fpref;
+};
+
 class PolymerFENE : public ForceField {
   /*
    * Class defining a polymer force field.
