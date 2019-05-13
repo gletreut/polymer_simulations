@@ -46,10 +46,26 @@ class MDStepper_VVerlet: public MDStepper {
     double m_pref_force;
 
     /* constructor / destructor */
-    MDStepper_VVerlet(MDWorld *world, double dt, double gam=1.0);
+    MDStepper_VVerlet(MDWorld *world, double dt, double gam=0.0);
     ~MDStepper_VVerlet();
 
     /* methods */
+    void step();
+};
+
+class LangStepper_VVerlet: public MDStepper_VVerlet {
+  public:
+    /* attributes */
+    double m_fbd_norm;
+    double m_s12;
+    gsl_rng *m_rng;
+
+    /* constructor / destructor */
+    LangStepper_VVerlet(MDWorld *world, gsl_rng *rng, double dt, double gam=1.0);
+    ~LangStepper_VVerlet();
+
+    /* methods */
+    void add_brownian_forces();
     void step();
 };
 

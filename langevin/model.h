@@ -36,6 +36,7 @@ class MDWorld {
     /* attributes */
     size_t m_npart, m_npartmax;
     double m_lx, m_ly, m_lz;                  // dimensions of the box
+    double m_gamma;
     double m_temp;
     double m_mass;
     double m_sig_hard_core;
@@ -47,7 +48,7 @@ class MDWorld {
     std::vector<ForceField*> m_ffields; // list of active force fields (minus gradient of positional potential)
 
     /* constructor / destructor */
-    MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core);
+    MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core, double gamma=1.0, double temp=1.0, double mass=1.0);
     virtual ~MDWorld();
 
     /* methods */

@@ -22,6 +22,7 @@
 
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
+#include <gsl/gsl_rng.h>
 
 #include "linalg.h"
 
@@ -132,6 +133,32 @@ class PolymerFENE : public ForceField {
     double m_4eps;
     double m_48eps;
     double m_rc_LJ;
+};
+
+class LangThermostat : public ForceField {
+  /*
+   * Class defining a random force field reproducing a a thermal bath.
+   * <f> = 0
+   * <f^2> = 2 m \gamma k_B T
+   */
+
+  public:
+    /* attributes */
+    double m_mass;         // mass
+    double m_gamma;        // gamma
+    double m_temp;         // temperature
+    gsl_rng *m_rng;        // random number generator
+
+    /* constructor and destructor */
+    LangThermostat(double mass, double gamma, double temp, gsl_rng *rng);
+    ~LangThermostat();
+
+    /* methods */
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+
+  private:
+    double m_s12;
+    double m_fpref;
 };
 
 

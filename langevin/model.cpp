@@ -37,17 +37,14 @@ using namespace std;
 //****************************************************************************
 //* MDWorld
 //****************************************************************************
-MDWorld::MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core) :
-  m_npart(npart), m_lx(lx), m_ly(ly), m_lz(lz), m_sig_hard_core(sig_hard_core) {
+MDWorld::MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core, double gamma, double temp, double mass) :
+  m_npart(npart), m_lx(lx), m_ly(ly), m_lz(lz), m_sig_hard_core(sig_hard_core), m_gamma(gamma), m_temp(temp), m_mass(mass) {
   /* check */
   if (m_npart == 0){
     throw invalid_argument("Number of particles must be larger than zero!");
   }
 
   /* initializations */
-  m_mass = 1.0;
-  m_temp = 1.0;
-  m_sig_hard_core = 1.0;
   m_energy_pot=0.;
   m_energy_kin=0.;
 

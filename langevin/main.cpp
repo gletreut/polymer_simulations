@@ -125,7 +125,8 @@ int main(int argc, char *argv[]){
   world = new MDWorld(params["npart"], params["lx"], params["ly"], params["lz"], params["sig_hard_core"]);
 
   /* initialize MDStepper */
-  stepper = new MDStepper_VVerlet(world, dt, 0);
+  //stepper = new MDStepper_VVerlet(world, dt, world->m_gamma);
+  stepper = new LangStepper_VVerlet(world, rng, dt, world->m_gamma);
 
   /* initialize force fields */
   /** confinement **/
@@ -133,8 +134,8 @@ int main(int argc, char *argv[]){
   ffield = new ConfinmentSphere(params["radius_conf"],1.0,1.0);
   world->m_ffields.push_back(ffield);
   /** polymer **/
-  ffield = new PolymerGaussian(1,4,1.0);
-  world->m_ffields.push_back(ffield);
+  //ffield = new PolymerGaussian(1,4,1.0);
+  //world->m_ffields.push_back(ffield);
 
   /* initialize simulation */
   world->init_positions();

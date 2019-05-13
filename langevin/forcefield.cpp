@@ -292,6 +292,7 @@ void PolymerGaussian::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces)
   gsl_vector_free(bond);
   return;
 }
+
 //****************************************************************************
 // PolymerFENE
 //****************************************************************************
@@ -376,5 +377,53 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 
   /* exit */
   gsl_vector_free(bond);
+  return;
+}
+
+//****************************************************************************
+// LangThermostat
+//****************************************************************************
+LangThermostat::LangThermostat(double mass, double gamma, double temp, gsl_rng *rng) :
+  m_mass(mass),
+  m_gamma(gamma),
+  m_temp(temp),
+  m_rng(rng)
+{
+  /* initialize some parameters */
+  m_fpref = sqrt(2.*m_mass*m_gamma*m_temp);
+  m_s12 = sqrt(12.);
+}
+
+LangThermostat::~LangThermostat(){
+}
+
+void LangThermostat::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the random force in a thermal bath.
+   * Velocity Langevin.
+   */
+
+  double r;
+  gsl_vector *rforce(0);
+
+  // initialize
+  rforce = gsl_vector_calloc(3);
+
+  // iterate over atomes
+  for (size_t i=0; i<x->size1; ++i){
+    // compute random force
+    for (size_t a=0; a<3; ++a){
+      r = m_s12*(gsl_rng_uniform(m_rng) - 0.5); // uniform with mean zero and variance 1.
+      gsl_vector_set(rforce,a,r);
+    }
+
+    cout << "fpref = " << m_fpref << endl;
+    // update forces
+    gsl_vector_view fi = gsl_matrix_row(forces, i);
+    linalg_daxpy(m_fpref, rforce, &fi.vector);
+  }
+
+  /* exit */
+  gsl_vector_free(rforce);
   return;
 }
