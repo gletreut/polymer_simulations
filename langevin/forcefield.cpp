@@ -204,7 +204,7 @@ void ConfinmentSphere::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces
    */
 
   size_t N;
-  double rx,ry,rz,r,sint,cosp,sinp,fnorm;
+  double rx,ry,rz,r,fnorm;
   gsl_vector *force(0);
 
   // initialize
@@ -465,7 +465,7 @@ void PolymerKratkyPorod::energy_force(gsl_matrix *x, double *u, gsl_matrix *forc
    */
 
   size_t n;
-  double r,ci,b2,bn2,bb;
+  double ci,b2,bn2,bb;
   gsl_vector *bond(0), *bond_n(0), *fm(0), *fp(0);
 
   // initialize

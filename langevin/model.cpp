@@ -280,6 +280,36 @@ MDWorld::dump_vel(ostream &mystream, bool index){
   return;
 }
 
+void
+dump_dat(std::string fileout) {
+  /*
+   * Dump configuration in .dat format.
+   */
+  ofstream fout;
+  fout.open(fileout.c_str());
+
+  dump_pos(fout, true, true, true);
+
+  fout.close();
+  return;
+}
+
+void
+dump_xyz(std::string fileout, size_t iter) {
+  /*
+   * Dump configuration in .xyz format.
+   */
+  ofstream fout;
+  fout.open(fileout.c_str());
+
+  fout << setw(10) << world->m_npart << endl;
+  fout << "Atoms. Timestep:" << setw(10) << iter << endl;
+  dump_pos(fout, false, false, false);
+
+  fout.close();
+  return;
+}
+
 //****************************************************************************
 //* Polymer
 //****************************************************************************

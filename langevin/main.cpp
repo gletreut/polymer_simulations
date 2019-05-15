@@ -7,9 +7,6 @@
 //* Author: Guillaume Le Treut
 //*	CEA - 2014
 //*
-//* Compilation with:
-//* g++ -std=c++11 main.cpp
-//*
 //*******************************************************************************
 #include <cstdlib>
 #include <iostream>
@@ -21,9 +18,13 @@
 #include <map>
 
 // external library
+// 1) GSL
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_vector.h>
+
+// 2) BOOST
+#include <boost/filesystem.hpp>
 
 // local library
 #include "global.h"
@@ -34,6 +35,7 @@
 
 using namespace std;
 using namespace utils;
+namespace fs = boost::filesystem;
 
 //** GLOBAL
 double macheps=std::numeric_limits<double>::epsilon();
@@ -49,7 +51,7 @@ void check_params_keys(map<string,double> myparams, vector<string> list);
 
 //** MAIN
 int main(int argc, char *argv[]){
-	string pathtoinput, pathtooutput, pathtoconf="", name;
+	string pathtoinput, pathtooutput, path, pathtoconf, name;
 	stringstream convert;
 	vector<string> parsechain;
 	ifstream fin;
@@ -83,6 +85,36 @@ int main(int argc, char *argv[]){
 
   check_params_keys(params, required_parameters);
 
+  // I/O
+  // directories
+  // // root directory for trajectories
+  path = "trajectory";
+  fs::path traj_dir(path.c_str());
+  if (fs::create_directory(traj_dir))
+  {
+    cout << "Directory created: " << traj_dir.string() << endl;
+  }
+  // // directory for dat format
+  path = "dat";
+  fs::path traj_dat = traj_dir;
+  traj_dat /=  fs::path(path.c_str());
+  cout << traj_dat.string() << endl;
+  if (fs::create_directory(traj_dat))
+  {
+    cout << "Directory created: " << traj_dat.string() << endl;
+  }
+  // // root directory for xyz format
+  path = "xyz";
+  fs::path traj_xyz = traj_dir;
+  traj_xyz /=  fs::path(path.c_str());
+  cout << traj_xyz.string() << endl;
+  if (fs::create_directory(traj_xyz))
+  {
+    cout << "Directory created: " << traj_xyz.string() << endl;
+  }
+  return 0;
+
+  // thermo
 	convert.clear();
 	convert.str("");
 	convert << "thermo.dat";
@@ -107,6 +139,7 @@ int main(int argc, char *argv[]){
 	fpos_xyz << left;
   cout << "output file: " << pathtooutput << endl;
 
+  // parameters
 	itermax=params["itermax"];                // number of iterations
 	idump_thermo=params["idump_thermo"];      // dump interval
 	idump_pos=params["idump_pos"];            // dump interval

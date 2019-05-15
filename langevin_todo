@@ -4,9 +4,12 @@ TODO
 v confinment rectangle
 v confinment spherical
 v polymer Gaussian
-o polymer bending rigidity
-o hard-constraints
-o polymer FENE
-o reloading previous configuration
+v polymer bending rigidity
 o dump configuration by configuration
+o reloading previous configuration
+o polymer FENE
+o hard-constraints
+  * fix first monomer
+  * keep second monomer on x axis
+  * keep third monomer in xy plane
 o GEM

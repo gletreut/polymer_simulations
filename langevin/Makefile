@@ -1,20 +1,22 @@
 CC = g++
 LINLIBS = GSL
-#CFLAGS = -std=c++11 -O3 -Wall
+CFLAGS := -std=c++11 -O3 -Wall
+LDLIBS := -lm
+LDFLAGS :=
 ifeq ($(LINLIBS), LAPACK)
-CFLAGS = -std=c++11 -O3 -DLAPACK
+CFLAGS += -DLAPACK
 #LDLIBS = -lgsl -lsbtk -llapacke -lcblas -llapack -lblas -lgfortran -lm
-LDLIBS = -lgsl -llapacke -lcblas -llapack -lblas -lgfortran -lm
+LDLIBS += -lgsl -llapacke -lcblas -llapack -lblas -lgfortran
 else ifeq ($(LINLIBS), MKL)
-CFLAGS = -std=c++11 -O3 -DMKL
-LDLIBS = -lgsl -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm
+CFLAGS += -DMKL
+LDLIBS += -lgsl -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread
 #source /opt/intel/mkl/bin/mklvars.sh intel64
 else
-CFLAGS = -std=c++11 -O3 -DGSL
-LDLIBS = -lgsl -lgslcblas -lm
+CFLAGS += -DGSL
+LDLIBS += -lgsl -lgslcblas
 endif
+LDLIBS += -lboost_filesystem -lboost_system
 
-LDFLAGS =
 SRC = main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper.cpp
 OBJS = $(SRC:.cpp=.o)
 PROG = ../bin/simu_langevin

@@ -177,9 +177,6 @@ class PolymerKratkyPorod : public ForceField {
 
     /* methods */
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-
-  private:
-    double m_fpref;
 };
 
 #endif

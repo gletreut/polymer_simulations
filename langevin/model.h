@@ -66,6 +66,8 @@ class MDWorld {
     void dump_pos(std::ostream &mystream, bool index=true, bool velocities=false, bool forces=false);
     void dump_vel(std::ostream &mystream, bool index=true);
     void dump_thermo(std::ostream &mystream);
+    void dump_dat(std::string fileout);
+    void dump_xyz(std::string fileout, size_t iter);
 };
 
 //class Polymer : public MDWorld {
