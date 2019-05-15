@@ -225,7 +225,7 @@ MDWorld::dump_thermo(ostream &mystream){
 }
 
 void
-MDWorld::dump_pos(ostream &mystream, bool index, bool velocities, bool forces){
+MDWorld::dump_pos(ostream &mystream, bool index, bool positions, bool velocities, bool forces){
   /*
    * Dump configuration
    */
@@ -239,9 +239,11 @@ MDWorld::dump_pos(ostream &mystream, bool index, bool velocities, bool forces){
     if (index) {
       mystream << setw(10) << setprecision(0) << noshowpos << i;
     }
-		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_x,i,0);
-		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_x,i,1);
-		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_x,i,2);
+    if (positions) {
+      mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_x,i,0);
+      mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_x,i,1);
+      mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_x,i,2);
+    }
     if (velocities) {
       mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,0);
       mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,1);
@@ -258,53 +260,30 @@ MDWorld::dump_pos(ostream &mystream, bool index, bool velocities, bool forces){
 }
 
 void
-MDWorld::dump_vel(ostream &mystream, bool index){
-  /*
-   * Dump configuration
-   */
-
-	if (m_npart == 0)
-		throw invalid_argument("MDWorld is empty!");
-
-  mystream << left << dec << fixed;
-
-	for (size_t i=0; i<m_npart;i++){
-    if (index) {
-      mystream << setw(10) << setprecision(0) << noshowpos << i;
-    }
-		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,0);
-		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,1);
-		mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(m_v,i,2);
-		mystream << endl;
-	}
-  return;
-}
-
-void
-dump_dat(std::string fileout) {
+MDWorld::dump_dat(std::string fileout) {
   /*
    * Dump configuration in .dat format.
    */
   ofstream fout;
   fout.open(fileout.c_str());
 
-  dump_pos(fout, true, true, true);
+  dump_pos(fout, true, true, true, true);
 
   fout.close();
   return;
 }
 
 void
-dump_xyz(std::string fileout, size_t iter) {
+MDWorld::dump_xyz(std::string fileout, size_t iter) {
   /*
    * Dump configuration in .xyz format.
    */
   ofstream fout;
   fout.open(fileout.c_str());
 
-  fout << setw(10) << world->m_npart << endl;
+  fout << left << dec << fixed << setw(10) << setprecision(0) << noshowpos << m_npart << endl;
   fout << "Atoms. Timestep:" << setw(10) << iter << endl;
-  dump_pos(fout, false, false, false);
+  dump_pos(fout, false, true, false, false);
 
   fout.close();
   return;

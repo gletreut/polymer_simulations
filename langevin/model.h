@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <cmath>
 #include <vector>
 #include <limits>
@@ -63,8 +64,7 @@ class MDWorld {
     void update_energy_kinetics();
 
     // dump methods
-    void dump_pos(std::ostream &mystream, bool index=true, bool velocities=false, bool forces=false);
-    void dump_vel(std::ostream &mystream, bool index=true);
+    void dump_pos(std::ostream &mystream, bool index=true, bool positions=true, bool velocities=false, bool forces=false);
     void dump_thermo(std::ostream &mystream);
     void dump_dat(std::string fileout);
     void dump_xyz(std::string fileout, size_t iter);

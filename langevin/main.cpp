@@ -51,8 +51,9 @@ void check_params_keys(map<string,double> myparams, vector<string> list);
 
 //** MAIN
 int main(int argc, char *argv[]){
-	string pathtoinput, pathtooutput, path, pathtoconf, name;
+	string pathtoinput, pathtooutput, pathtoconf, path, trajname;
 	stringstream convert;
+  fs::path state_path;
 	vector<string> parsechain;
 	ifstream fin;
 	ofstream fpos_dat, fpos_xyz,fthermo;
@@ -63,7 +64,7 @@ int main(int argc, char *argv[]){
   MDStepper *stepper(0);
   ForceField *ffield(0);
 	double dt, T, b, lp;
-	size_t iter, itermax, idump_pos, idump_thermo, N;
+	size_t iter, itermax, idump_pos, idump_thermo, N, iterwidth;
 
 //-----------------------------------------------
 //** INITIALIZATION
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]){
   {
     cout << "Directory created: " << traj_dat.string() << endl;
   }
-  // // root directory for xyz format
+  // // directory for xyz format
   path = "xyz";
   fs::path traj_xyz = traj_dir;
   traj_xyz /=  fs::path(path.c_str());
@@ -112,9 +113,10 @@ int main(int argc, char *argv[]){
   {
     cout << "Directory created: " << traj_xyz.string() << endl;
   }
-  return 0;
+  // // trajname
+  trajname = "state";
 
-  // thermo
+  // // thermo
 	convert.clear();
 	convert.str("");
 	convert << "thermo.dat";
@@ -123,32 +125,17 @@ int main(int argc, char *argv[]){
 	fthermo << left;
   cout << "output file: " << pathtooutput << endl;
 
-	convert.clear();
-	convert.str("");
-	convert << "positions.dat";
-  pathtooutput = convert.str();
-	fpos_dat.open(pathtooutput.c_str());
-	fpos_dat << left;
-  cout << "output file: " << pathtooutput << endl;
-
-	convert.clear();
-	convert.str("");
-	convert << "positions.xyz";
-  pathtooutput = convert.str();
-	fpos_xyz.open(pathtooutput.c_str());
-	fpos_xyz << left;
-  cout << "output file: " << pathtooutput << endl;
-
   // parameters
 	itermax=params["itermax"];                // number of iterations
 	idump_thermo=params["idump_thermo"];      // dump interval
 	idump_pos=params["idump_pos"];            // dump interval
 	dt=params["dt"];                          // integration time step
+  iterwidth = size_t(log10(itermax)+0.5);
 
-	T=params["T"];            // temperature
-	b=params["b"];            // bond length
-	lp=params["lp"];          // persistence length
-	N=params["N"];            // number of monomers
+	T=params["T"];                            // temperature
+	b=params["b"];                            // bond length
+	lp=params["lp"];                          // persistence length
+	N=params["N"];                            // number of monomers
 
   /* initialize random number generator */
   rng = gsl_rng_alloc(RDT);
@@ -189,18 +176,21 @@ int main(int argc, char *argv[]){
       world->dump_thermo(fthermo);
       fthermo << endl;
     }
-
     if (iter % idump_pos == 0){
+      // generate file name
+      convert.clear();
+      convert.str("");
+      convert << trajname << setw(iterwidth) << setfill('0') << setprecision(0) << fixed << dec << iter;
       // conf dump -- standard
-      world->dump_pos(fpos_dat, true, true, true);
-      fpos_dat << endl;
+      state_path = traj_dat;
+      state_path /=  convert.str();
+      state_path += ".dat";
+      world->dump_dat(state_path.string());
       // conf dump -- xyz format
-			fpos_xyz << setw(10) << world->m_npart << endl;
-			fpos_xyz << "Atoms. Timestep:" << setw(10) << iter << endl;
-      world->dump_pos(fpos_xyz);
-      // velocity dump
-      //world->dump_vel(cout);
-      //cout << endl;
+      state_path = traj_xyz;
+      state_path /=  convert.str();
+      state_path += ".xyz";
+      world->dump_xyz(state_path.string(), iter);
     }
 
     /* step */
@@ -213,6 +203,25 @@ int main(int argc, char *argv[]){
   }
 
   /* final dump */
+  // thermo dump
+  fthermo << setw(10) << fixed << setprecision(0) << noshowpos << iter;
+  world->dump_thermo(fthermo);
+  fthermo << endl;
+  // configuration dump
+  convert.clear();
+  convert.str("");
+  convert << trajname << setw(iterwidth) << setfill('0') << setprecision(0) << fixed << dec << iter;
+  // conf dump -- standard
+  state_path = traj_dat;
+  state_path /=  convert.str();
+  state_path += ".dat";
+  world->dump_dat(state_path.string());
+  // conf dump -- xyz format
+  state_path = traj_xyz;
+  state_path /=  convert.str();
+  state_path += ".xyz";
+  world->dump_xyz(state_path.string(), iter);
+
   // thermo
   ofstream fthermo_final("thermo_final.dat");
   fthermo_final << left;
