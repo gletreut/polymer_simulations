@@ -4,8 +4,9 @@ TODO
 v confinment rectangle
 v confinment spherical
 v polymer Gaussian
+o polymer bending rigidity
 o hard-constraints
-o Brownian Force
 o polymer FENE
 o reloading previous configuration
+o dump configuration by configuration
 o GEM

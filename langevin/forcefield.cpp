@@ -281,11 +281,67 @@ void PolymerGaussian::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces)
     *u += m_ke*r*r;
 
     // forces
-    //  FENE
     gsl_vector_view fn = gsl_matrix_row(forces, n);
     gsl_vector_view fnp = gsl_matrix_row(forces, n+1);
     linalg_daxpy(m_fpref, bond, &fn.vector);
     linalg_daxpy(-m_fpref, bond, &fnp.vector);
+  }
+
+  /* exit */
+  gsl_vector_free(bond);
+  return;
+}
+
+//****************************************************************************
+// PolymerHarmonic
+//****************************************************************************
+PolymerHarmonic::PolymerHarmonic(size_t offset, size_t N, double ke, double r0) :
+  m_offset(offset),
+  m_N(N),
+  m_ke(ke),
+  m_r0(r0)
+{
+  /* initialize some parameters */
+  m_fpref = 2.*m_ke;
+}
+
+PolymerHarmonic::~PolymerHarmonic(){
+}
+
+void PolymerHarmonic::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the potential energy and force (minus gradient) of a Gaussian chain.
+   */
+
+  size_t n;
+  double r,dr,fr;
+  gsl_vector *bond(0);
+
+  // initialize
+  bond = gsl_vector_calloc(3);
+
+  // iterate over the bonds (r_\{i+1\} - r_i)
+  for (size_t i=0; i<m_N-1; ++i){
+    n = m_offset + i;
+    gsl_vector_view vn = gsl_matrix_row(x, n);
+    gsl_vector_view vnp = gsl_matrix_row(x, n+1);
+
+    // compute bond
+    gsl_vector_memcpy(bond, &vnp.vector);
+    linalg_daxpy(-1., &vn.vector, bond);
+    r = linalg_dnrm2(bond);
+    dr = r-m_r0;
+
+    // energy
+    *u += m_ke*dr*dr;
+
+    // forces
+    fr = (1.-m_r0/r);
+    //  FENE
+    gsl_vector_view fn = gsl_matrix_row(forces, n);
+    gsl_vector_view fnp = gsl_matrix_row(forces, n+1);
+    linalg_daxpy(m_fpref*fr, bond, &fn.vector);
+    linalg_daxpy(-m_fpref*fr, bond, &fnp.vector);
   }
 
   /* exit */
@@ -381,49 +437,92 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 }
 
 //****************************************************************************
-// LangThermostat
+// PolymerKratkyPorod
 //****************************************************************************
-LangThermostat::LangThermostat(double mass, double gamma, double temp, gsl_rng *rng) :
-  m_mass(mass),
-  m_gamma(gamma),
-  m_temp(temp),
-  m_rng(rng)
+PolymerKratkyPorod::PolymerKratkyPorod(size_t offset, size_t N, double lp) :
+  m_offset(offset),
+  m_N(N),
+  m_lp(lp)
 {
-  /* initialize some parameters */
-  m_fpref = sqrt(2.*m_mass*m_gamma*m_temp);
-  m_s12 = sqrt(12.);
 }
 
-LangThermostat::~LangThermostat(){
+PolymerKratkyPorod::~PolymerKratkyPorod() {
 }
 
-void LangThermostat::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+/* methods */
+void PolymerKratkyPorod::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   /*
-   * Compute the random force in a thermal bath.
-   * Velocity Langevin.
+   * Compute the potential energy and force (minus gradient) of a Kratky-Porod
+   * chain potential.
+   * \beta U = l_p \sum_{i=1)^{N-1} (1 - \cos(\theta_i)),
+   *   \cos(\theta_i)) = (u_i.u_{i+1})/(||u_i|| ||u_{i+1}||)
+   *
+   * Each joint i generate a force on the 3 surrounding monomers such that
+   * (showing only x component):
+   * f_{i-1} / lp = -(x_{i+1} - x_{i})/(||u_i|| ||u_{i+1}||) + (x_{i} - x_{i-1}) \cos(\theta_i)/||u_i||^2
+   * f_{i+1} / lp = -(x_{i+1} - x_{i})\cos(\theta_i)/||u_{i+1}||^2 + (x_{i} - x_{i-1})/(||u_i|| ||u_{i+1}||)
+   * f_{i} = - f_{i-1} - f{i+1}
    */
 
-  double r;
-  gsl_vector *rforce(0);
+  size_t n;
+  double r,ci,b2,bn2,bb;
+  gsl_vector *bond(0), *bond_n(0), *fm(0), *fp(0);
 
   // initialize
-  rforce = gsl_vector_calloc(3);
+  bond = gsl_vector_calloc(3);
+  bond_n = gsl_vector_calloc(3);
+  fm = gsl_vector_calloc(3);
+  fp = gsl_vector_calloc(3);
 
-  // iterate over atomes
-  for (size_t i=0; i<x->size1; ++i){
-    // compute random force
-    for (size_t a=0; a<3; ++a){
-      r = m_s12*(gsl_rng_uniform(m_rng) - 0.5); // uniform with mean zero and variance 1.
-      gsl_vector_set(rforce,a,r);
-    }
+  // initialize bond
+  n = m_offset;
+  gsl_vector_view v = gsl_matrix_row(x, n);
+  gsl_vector_view vn = gsl_matrix_row(x, n+1);
+  gsl_vector_memcpy(bond_n, &vn.vector);
+  linalg_daxpy(-1., &v.vector, bond_n);
 
-    cout << "fpref = " << m_fpref << endl;
-    // update forces
-    gsl_vector_view fi = gsl_matrix_row(forces, i);
-    linalg_daxpy(m_fpref, rforce, &fi.vector);
+  // iterate over the bonds joints
+  for (size_t i=1; i<m_N-1; ++i){
+    n = m_offset + i;
+    gsl_vector_memcpy(bond,bond_n);
+    gsl_vector_view v = gsl_matrix_row(x, n);
+    gsl_vector_view vn = gsl_matrix_row(x, n+1);
+    gsl_vector_memcpy(bond_n, &vn.vector);
+    linalg_daxpy(-1., &v.vector, bond_n);
+
+    // compute quantities
+    b2 = linalg_ddot(bond,bond);
+    bn2 = linalg_ddot(bond_n,bond_n);
+    bb = sqrt(b2)*sqrt(bn2);
+    ci = linalg_ddot(bond,bond_n)/bb;  // cos(\theta_i)
+
+    // energy
+    *u += m_lp*(1.0-ci);
+
+    // forces
+    gsl_vector_view fnm = gsl_matrix_row(forces, n-1);
+    gsl_vector_view fn = gsl_matrix_row(forces, n);
+    gsl_vector_view fnp = gsl_matrix_row(forces, n+1);
+    // force on n-1
+    gsl_vector_set_all(fm,0.0);
+    linalg_daxpy(-1./bb,bond_n,fm);
+    linalg_daxpy(ci/b2,bond,fm);
+    // force on n+1
+    gsl_vector_set_all(fp,0.0);
+    linalg_daxpy(-ci/bn2,bond_n,fp);
+    linalg_daxpy(1./bb,bond,fp);
+
+    // updates
+    linalg_daxpy(m_lp, fm, &fnm.vector);
+    linalg_daxpy(m_lp, fp, &fnp.vector);
+    linalg_daxpy(-m_lp, fm, &fn.vector);
+    linalg_daxpy(-m_lp, fp, &fn.vector);
   }
 
   /* exit */
-  gsl_vector_free(rforce);
+  gsl_vector_free(bond);
+  gsl_vector_free(bond_n);
+  gsl_vector_free(fm);
+  gsl_vector_free(fp);
   return;
 }

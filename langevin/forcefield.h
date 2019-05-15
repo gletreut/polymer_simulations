@@ -107,6 +107,30 @@ class PolymerGaussian : public ForceField {
     double m_fpref;
 };
 
+class PolymerHarmonic : public ForceField {
+  /*
+   * Class defining a polymer force field.
+   * Harmonic bonds backbone
+   */
+
+  public:
+    /* attributes */
+    size_t m_offset;    // index of first monomer
+    size_t m_N;         // number of monomers
+    double m_ke;        // energy / b^2 for FENE bond
+    double m_r0;
+
+    /* constructor and destructor */
+    PolymerHarmonic(size_t offset, size_t N, double ke=100, double r0=1.);
+    ~PolymerHarmonic();
+
+    /* methods */
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+
+  private:
+    double m_fpref;
+};
+
 class PolymerFENE : public ForceField {
   /*
    * Class defining a polymer force field.
@@ -135,31 +159,27 @@ class PolymerFENE : public ForceField {
     double m_rc_LJ;
 };
 
-class LangThermostat : public ForceField {
+class PolymerKratkyPorod : public ForceField {
   /*
-   * Class defining a random force field reproducing a a thermal bath.
-   * <f> = 0
-   * <f^2> = 2 m \gamma k_B T
+   * Class defining a force field representing a polymer semi-flexibility
+   * Kratky-Porod model
    */
 
   public:
     /* attributes */
-    double m_mass;         // mass
-    double m_gamma;        // gamma
-    double m_temp;         // temperature
-    gsl_rng *m_rng;        // random number generator
+    size_t m_offset;    // index of first monomer
+    size_t m_N;         // number of monomers
+    double m_lp;        // persistence length (in units of bond length)
 
     /* constructor and destructor */
-    LangThermostat(double mass, double gamma, double temp, gsl_rng *rng);
-    ~LangThermostat();
+    PolymerKratkyPorod(size_t offset, size_t N, double lp);
+    ~PolymerKratkyPorod();
 
     /* methods */
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 
   private:
-    double m_s12;
     double m_fpref;
 };
-
 
 #endif
