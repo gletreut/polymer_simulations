@@ -51,7 +51,7 @@ void check_params_keys(map<string,double> myparams, vector<string> list);
 
 //** MAIN
 int main(int argc, char *argv[]){
-	string pathtoinput, pathtooutput, pathtoconf, path, trajname;
+	string pathtoinput, pathtooutput, pathtoinitconf, pathname, trajname;
 	stringstream convert;
   fs::path state_path;
 	vector<string> parsechain;
@@ -76,8 +76,11 @@ int main(int argc, char *argv[]){
 		if (argc == 2){
 			convert.clear();
 			convert.str(argv[1]);
-			convert >> pathtoconf;
+			convert >> pathtoinitconf;
 		}
+    else {
+      pathtoinitconf = "";
+    }
 
 	cout << "Enter parameters values in the form: <key> <value> for the following keys: (iter,dt,T,N,b,lp,dump)" << endl;
 	load_map<double>(cin,params);
@@ -89,16 +92,16 @@ int main(int argc, char *argv[]){
   // I/O
   // directories
   // // root directory for trajectories
-  path = "trajectory";
-  fs::path traj_dir(path.c_str());
+  pathname = "trajectory";
+  fs::path traj_dir(pathname.c_str());
   if (fs::create_directory(traj_dir))
   {
     cout << "Directory created: " << traj_dir.string() << endl;
   }
   // // directory for dat format
-  path = "dat";
+  pathname = "dat";
   fs::path traj_dat = traj_dir;
-  traj_dat /=  fs::path(path.c_str());
+  traj_dat /=  fs::path(pathname.c_str());
   cout << traj_dat.string() << endl;
   if (fs::create_directory(traj_dat))
   {
@@ -109,9 +112,9 @@ int main(int argc, char *argv[]){
     fs::remove_all(it->path());
   }
   // // directory for xyz format
-  path = "xyz";
+  pathname = "xyz";
   fs::path traj_xyz = traj_dir;
-  traj_xyz /=  fs::path(path.c_str());
+  traj_xyz /=  fs::path(pathname.c_str());
   cout << traj_xyz.string() << endl;
   if (fs::create_directory(traj_xyz))
   {
@@ -170,8 +173,35 @@ int main(int argc, char *argv[]){
   world->m_ffields.push_back(ffield);
 
   /* initialize simulation */
-  world->init_positions();
-  world->init_velocities(rng);
+  if (pathtoinitconf == "") {
+    cout << "Initializing positions on a lattice" << endl;
+    world->init_positions();
+    cout << "Initializing velocities randomly" << endl;
+    world->init_velocities(rng);
+  }
+  else {
+    fs::path path(pathtoinitconf.c_str());
+    string ext;
+
+    ext = path.extension().string();
+    if (ext == ".dat") {
+      cout << "Init from DAT format..." << endl;
+      cout << "Initializing positions from input" << endl;
+      cout << "Initializing velocities from input" << endl;
+      world->load_dat(pathtoinitconf);
+    }
+    else if (ext == ".xyz") {
+      cout << "Init from XYZ format..." << endl;
+      cout << "Initializing positions from input" << endl;
+      world->load_xyz(pathtoinitconf);
+      cout << "Initializing velocities randomly" << endl;
+      world->init_velocities(rng);
+    }
+    else {
+      cout << path.string() << endl;
+      throw invalid_argument("Extension not recognized.");
+    }
+  }
   world->update_energy_kinetics();
   stepper->call_forces(); // compute forces at current position
 

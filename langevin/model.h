@@ -68,6 +68,10 @@ class MDWorld {
     void dump_thermo(std::ostream &mystream);
     void dump_dat(std::string fileout);
     void dump_xyz(std::string fileout, size_t iter);
+
+    // loading methods
+    void load_dat(std::string filein);
+    void load_xyz(std::string filein);
 };
 
 //class Polymer : public MDWorld {
