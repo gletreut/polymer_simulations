@@ -283,7 +283,7 @@ MDWorld::dump_xyz(std::string fileout, size_t iter) {
 
   fout << left << dec << fixed << setw(10) << setprecision(0) << noshowpos << m_npart << endl;
   fout << "Atoms. Timestep:" << setw(10) << iter << endl;
-  dump_pos(fout, false, true, false, false);
+  dump_pos(fout, true, true, false, false);
 
   fout.close();
   return;

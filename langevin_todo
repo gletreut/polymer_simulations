@@ -5,7 +5,7 @@ v confinment rectangle
 v confinment spherical
 v polymer Gaussian
 v polymer bending rigidity
-o dump configuration by configuration
+v dump configuration by configuration
 o reloading previous configuration
 o polymer FENE
 o hard-constraints

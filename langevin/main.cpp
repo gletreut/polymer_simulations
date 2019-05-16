@@ -104,6 +104,10 @@ int main(int argc, char *argv[]){
   {
     cout << "Directory created: " << traj_dat.string() << endl;
   }
+  // // remove all existing configurations
+  for (fs::directory_iterator end_dir_it, it(traj_dat); it!=end_dir_it; ++it) {
+    fs::remove_all(it->path());
+  }
   // // directory for xyz format
   path = "xyz";
   fs::path traj_xyz = traj_dir;
@@ -112,6 +116,10 @@ int main(int argc, char *argv[]){
   if (fs::create_directory(traj_xyz))
   {
     cout << "Directory created: " << traj_xyz.string() << endl;
+  }
+  // // remove all existing configurations
+  for (fs::directory_iterator end_dir_it, it(traj_xyz); it!=end_dir_it; ++it) {
+    fs::remove_all(it->path());
   }
   // // trajname
   trajname = "state";
@@ -130,7 +138,7 @@ int main(int argc, char *argv[]){
 	idump_thermo=params["idump_thermo"];      // dump interval
 	idump_pos=params["idump_pos"];            // dump interval
 	dt=params["dt"];                          // integration time step
-  iterwidth = size_t(log10(itermax)+0.5);
+  iterwidth = size_t(log10(itermax)) + 1;
 
 	T=params["T"];                            // temperature
 	b=params["b"];                            // bond length
