@@ -167,7 +167,9 @@ int main(int argc, char *argv[]){
   /** polymer **/
 //  ffield = new PolymerGaussian(0,world->m_npart,1.0);
 //  world->m_ffields.push_back(ffield);
-  ffield = new PolymerHarmonic(0,world->m_npart,1000.0,1.);
+//  ffield = new PolymerHarmonic(0,world->m_npart,2000.0,1.);
+//  world->m_ffields.push_back(ffield);
+  ffield = new PolymerFENE(0,world->m_npart,30.0, 1.5, 1.0, 1.0);
   world->m_ffields.push_back(ffield);
   ffield = new PolymerKratkyPorod(0,world->m_npart,3.0);
   world->m_ffields.push_back(ffield);

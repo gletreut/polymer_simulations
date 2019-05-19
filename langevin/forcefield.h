@@ -25,6 +25,7 @@
 #include <gsl/gsl_rng.h>
 
 #include "linalg.h"
+#include "utils.h"
 
 class ForceField {
   /*
@@ -134,6 +135,7 @@ class PolymerHarmonic : public ForceField {
 class PolymerFENE : public ForceField {
   /*
    * Class defining a polymer force field.
+   * See LAMMPS documentation: https://lammps.sandia.gov/doc/bond_fene.html
    */
 
   public:
@@ -150,12 +152,14 @@ class PolymerFENE : public ForceField {
     ~PolymerFENE();
 
     /* methods */
+    double energy_LJ_scal(double r);
+    double force_LJ_scal(double r);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 
   private:
     double m_pref;
     double m_4eps;
-    double m_48eps;
+    double m_fpref_LJ;
     double m_rc_LJ;
 };
 

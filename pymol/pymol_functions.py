@@ -50,7 +50,7 @@ def load_xyz_states(trajdir, prefix="state"):
     The trajectory is ordered by alphabetical order.
     """
     # make list of state files
-    lst = glob.glob(trajdir+prefix+"*.xyz")
+    lst = glob.glob(os.path.join(trajdir,prefix+"*.xyz"))
     lst.sort()
 
     return load_xyz_states_list(lst)

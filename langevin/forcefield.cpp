@@ -337,7 +337,6 @@ void PolymerHarmonic::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces)
 
     // forces
     fr = (1.-m_r0/r);
-    //  FENE
     gsl_vector_view fn = gsl_matrix_row(forces, n);
     gsl_vector_view fnp = gsl_matrix_row(forces, n+1);
     linalg_daxpy(m_fpref*fr, bond, &fn.vector);
@@ -362,7 +361,7 @@ PolymerFENE::PolymerFENE(size_t offset, size_t N, double ke, double rc, double s
 {
   m_pref = -0.5*m_ke*m_rc*m_rc;
   m_4eps = 4.0*m_eps;
-  m_48eps = 48.0*m_eps;
+  m_fpref_LJ = 48.0*m_eps / m_sigma;
   m_rc_LJ = m_sigma*pow(2.,1./6);
 
 }
@@ -371,14 +370,52 @@ PolymerFENE::~PolymerFENE(){
 }
 
 /* methods */
+double PolymerFENE::energy_LJ_scal(double r){
+  /*
+   * compute the energy of the  LJ interaction when the algebric
+   * distance is r.
+   */
+
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = m_sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_4eps*(x12 - x6) + m_eps;
+  }
+  else {
+    return 0.0;
+  }
+}
+
+double PolymerFENE::force_LJ_scal(double r){
+  /*
+   * compute the algebric norm of the LJ force applied when the algebric
+   * distance is r.
+   */
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = m_sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_fpref_LJ*x*(x12 - 0.5*x6);
+  }
+  else {
+    return 0.0;
+  }
+}
+
 void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   /*
    * Compute the potential energy and force (minus gradient) of a FENE chain.
    */
 
   size_t n;
-  double r,fr,y,y2, y6,y12,fnorm;
+  double r,fr,fnorm;
   gsl_vector *bond(0);
+  stringstream convert;
 
   // initialize
   bond = gsl_vector_calloc(3);
@@ -394,41 +431,41 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     gsl_vector_view vnp = gsl_matrix_row(x, n+1);
 
     gsl_vector_memcpy(bond, &vnp.vector);
-
     linalg_daxpy(-1., &vn.vector, bond);
+
     r = linalg_dnrm2(bond);
     fr = r/m_rc;
-    y = m_sigma/r;
-    y2 = y*y;
-    y6 = y2*y2*y2;
-    y12 = y6*y6;
 
     // check length of bond
     if ( !(fr < 1.) ){
-      stringstream convert;
       convert.clear();
-      convert << "FENE bond too long: " << "monomers " << n << "," << n+1 << "  r = " << r;
+      convert << "FENE bond too long: " << "monomers " << n << "," << n+1 << "  r = " << r << endl;
+      convert << "vn: " << endl;
+      utils::print_vector(convert, &vn.vector);
+      convert << "vnp: " << endl;
+      utils::print_vector(convert, &vnp.vector);
+      convert << "bond: " << endl;
+      utils::print_vector(convert, bond);
+      //cout << convert.str();
       throw runtime_error(convert.str());
     }
 
     // energy
     *u += m_pref*log(1.0-fr*fr);          // fene contribution
-    if ( fabs(r) < m_rc_LJ)
-      *u += m_4eps*(y12-y6) + m_eps;      // LJ contribution
+    *u += energy_LJ_scal(r);
 
     // forces
     //  FENE
     gsl_vector_view fn = gsl_matrix_row(forces, n);
     gsl_vector_view fnp = gsl_matrix_row(forces, n+1);
-    fnorm = m_ke / (1.0 - fr*fr);
+    fnorm = -m_ke / (1.0 - fr*fr);
     linalg_daxpy(-fnorm, bond, &fn.vector);
-    linalg_daxpy(fnorm, bond, &fnp.vector);
+    linalg_daxpy(+fnorm, bond, &fnp.vector);
     //  LJ
-    if ( fabs(r) < m_rc_LJ) {
-      fnorm = m_48eps / (r*r) * (y12-0.5*y6);
-      linalg_daxpy(-fnorm, bond, &fn.vector);
-      linalg_daxpy(fnorm, bond, &fnp.vector);
-    }
+    fnorm = force_LJ_scal(r);  // algebric norm
+    fnorm /= (r*r);            // because bond is not normalized to 1
+    linalg_daxpy(-fnorm, bond, &fn.vector);
+    linalg_daxpy(+fnorm, bond, &fnp.vector);
   }
 
   /* exit */

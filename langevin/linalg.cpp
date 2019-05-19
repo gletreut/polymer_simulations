@@ -176,7 +176,7 @@ linalg_dgemv  (int transA, const double alpha,
 void
 linalg_invert(const gsl_matrix *a, gsl_matrix *ainv){
 
-  int N;
+  size_t N;
 
   N = a->size1;
   if (a->size2 != N)

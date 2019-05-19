@@ -13,3 +13,9 @@ o hard-constraints
   * keep second monomer on x axis
   * keep third monomer in xy plane
 o GEM
+
+
+# Docker file
+## boost
+Need to install boost with:
+apt-get -y install libboost-all-dev
