@@ -58,6 +58,7 @@ MDWorld::MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_
   gsl_matrix_set_all(m_forces_tp, 0.0);
 
   m_ffields.clear();
+  m_constraints.clear();
 }
 
 MDWorld::~MDWorld() {
@@ -66,7 +67,15 @@ MDWorld::~MDWorld() {
   gsl_matrix_free(m_forces);
   gsl_matrix_free(m_forces_tp);
 
+  /* delete forcefields */
   for (vector<ForceField*>::iterator it=m_ffields.begin(); it!=m_ffields.end(); ++it){
+    if (*it != nullptr){
+      delete (*it);
+    }
+  }
+
+  /* delete constraints */
+  for (vector<Constraint*>::iterator it=m_constraints.begin(); it!=m_constraints.end(); ++it){
     if (*it != nullptr){
       delete (*it);
     }
@@ -186,6 +195,17 @@ void MDWorld::init_velocities(gsl_rng *rng){
   gsl_vector_free(vm);
 }
 
+void MDWorld::set_constraints() {
+  /*
+   * Set constraints.
+   */
+
+  constrain_x();
+  constrain_v();
+
+  return;
+}
+
 void MDWorld::update_energy_forces(){
   /*
    * compute all forces
@@ -201,6 +221,43 @@ void MDWorld::update_energy_forces(){
   return;
 }
 
+void MDWorld::constrain_x(){
+  /*
+   * Apply constraints on positions
+   */
+
+  /* iterate over constraints */
+  for (vector<Constraint*>::iterator it=m_constraints.begin(); it!=m_constraints.end(); ++it){
+      (*it)->constrain_x(m_x);
+  }
+
+  return;
+}
+void MDWorld::constrain_v(){
+  /*
+   * Apply constraints on velocities
+   */
+  /* iterate over constraints */
+  for (vector<Constraint*>::iterator it=m_constraints.begin(); it!=m_constraints.end(); ++it){
+      (*it)->constrain_v(m_v);
+  }
+
+  return;
+}
+
+//void MDWorld::constrain_forces(){
+//  /*
+//   * Apply constraints on forces
+//   */
+//
+//  /* iterate over constraints */
+//  for (vector<Constraint*>::iterator it=m_constraints.begin(); it!=m_constraints.end(); ++it){
+//      (*it)->constrain_force(m_forces);
+//  }
+//
+//  return;
+//}
+//
 void MDWorld::update_energy_kinetics(){
   /*
    * compute all forces

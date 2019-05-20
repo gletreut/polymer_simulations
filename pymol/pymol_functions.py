@@ -57,6 +57,21 @@ def load_xyz_states(trajdir, prefix="state"):
 
 cmd.extend("load_xyz_states",load_xyz_states)
 
+def color_123():
+    """
+    Color firsr 3 monomers
+    """
+
+    cmd.select("at0", "resi 1")
+    cmd.select("at1", "resi 2")
+    cmd.select("at2", "resi 3")
+    cmd.deselect()
+    cmd.color("red","at0")
+    cmd.color("green","at1")
+    cmd.color("yellow","at2")
+
+cmd.extend("color_123",color_123)
+
 def polymer_colloids_standard(path=["pol.xyz"], polymer_color='tv_blue', monomer_size=1.0, sphere_transparency=0.0, showspheres=True):
     ## LOADING
     cmd.reinitialize()

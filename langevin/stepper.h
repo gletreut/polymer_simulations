@@ -33,7 +33,9 @@ class MDStepper {
     virtual ~MDStepper();
 
     /* methods */
-    virtual void call_forces();
+    void call_forces();
+    void call_constraints_x();
+    void call_constraints_v();
     virtual void step()=0;
 };
 

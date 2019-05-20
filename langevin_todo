@@ -8,7 +8,7 @@ v polymer bending rigidity
 v dump configuration by configuration
 v reloading previous configuration
 v polymer FENE
-o hard-constraints
+v hard-constraints
   * fix first monomer
   * keep second monomer on x axis
   * keep third monomer in xy plane

@@ -28,12 +28,27 @@ MDStepper::~MDStepper(){
 
 void MDStepper::call_forces(){
   /*
-   * Initiate the stepper
+   * Force computation
    */
   m_world->update_energy_forces();    // update the forces
   return;
 }
 
+void MDStepper::call_constraints_x(){
+  /*
+   * Apply constraint projection for positions
+   */
+  m_world->constrain_x();        // apply constraints
+  return;
+}
+
+void MDStepper::call_constraints_v(){
+  /*
+   * Apply constraint projection for velocities
+   */
+  m_world->constrain_v();        // apply constraints
+  return;
+}
 //****************************************************************************
 // MDStepper_VVerlet
 //****************************************************************************
@@ -61,12 +76,15 @@ void MDStepper_VVerlet::step() {
   // update velocities -- first half-step
   linalg_dscal(m_gam_m, m_v);             // V <- (1 - \gamma dt/2) V
   linalg_daxpy(m_pref_force, m_f, m_v);   // V <- V + 1/M dt/2 * F
+  call_constraints_v();
   // update positions
   linalg_daxpy(m_dt, m_v, m_x);           // X <- X + dt * V
+  call_constraints_x();
   call_forces();                          // F <- forces(X)
   // update velocities -- second half-step
   linalg_daxpy(m_pref_force, m_f, m_v);   // V <- V + 1/M dt/2 * F
   linalg_dscal(m_gam_i, m_v);             // V <- 1/(1 + \gamma dt/2) V
+  call_constraints_v();
 
   return;
 }
@@ -130,13 +148,16 @@ void LangStepper_VVerlet::step() {
   linalg_dscal(m_gam_m, m_v);             // V <- (1 - \gamma dt/2) V
   linalg_daxpy(m_pref_force, m_f, m_v);   // V <- V + 1/M dt/2 * F
   add_brownian_forces();
+  call_constraints_v();
   // update positions
   linalg_daxpy(m_dt, m_v, m_x);           // X <- X + dt * V
+  call_constraints_x();
   call_forces();                          // F <- forces(X)
   // update velocities -- second half-step
   linalg_daxpy(m_pref_force, m_f, m_v);   // V <- V + 1/M dt/2 * F
   add_brownian_forces();
   linalg_dscal(m_gam_i, m_v);             // V <- 1/(1 + \gamma dt/2) V
+  call_constraints_v();
 
   return;
 }

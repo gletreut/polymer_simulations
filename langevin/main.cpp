@@ -63,6 +63,7 @@ int main(int argc, char *argv[]){
   MDWorld *world(0);
   MDStepper *stepper(0);
   ForceField *ffield(0);
+  Constraint *constraint(0);
 	double dt, T, b, lp;
 	size_t iter, itermax, idump_pos, idump_thermo, N, iterwidth;
 
@@ -167,12 +168,23 @@ int main(int argc, char *argv[]){
   /** polymer **/
 //  ffield = new PolymerGaussian(0,world->m_npart,1.0);
 //  world->m_ffields.push_back(ffield);
-//  ffield = new PolymerHarmonic(0,world->m_npart,2000.0,1.);
-//  world->m_ffields.push_back(ffield);
+  //ffield = new PolymerHarmonic(0,world->m_npart,200.0,1.);
+  //world->m_ffields.push_back(ffield);
   ffield = new PolymerFENE(0,world->m_npart, 30.0, 1.5, 1.0, 1.0);
   world->m_ffields.push_back(ffield);
   ffield = new PolymerKratkyPorod(0,world->m_npart,3.0);
   world->m_ffields.push_back(ffield);
+
+  /* initialize constraints */
+  /** attach monomer 0 to origin **/
+  constraint = new PointConstraint(0,0.0,0.0,0.0);
+  world->m_constraints.push_back(constraint);
+  /** constrain axis of monomers (0,1) **/
+  constraint = new AxisConstraint(1,0.0,0.0,0.0,1.0,0.0,0.0);
+  world->m_constraints.push_back(constraint);
+  /** constrain plane of monomers (0,1,2) **/
+  constraint = new PlaneConstraint(2,0.0,0.0,0.0,0.0,0.0,1.0);
+  world->m_constraints.push_back(constraint);
 
   /* initialize simulation */
   if (pathtoinitconf == "") {
@@ -204,6 +216,7 @@ int main(int argc, char *argv[]){
       throw invalid_argument("Extension not recognized.");
     }
   }
+  world->set_constraints();
   world->update_energy_kinetics();
   stepper->call_forces(); // compute forces at current position
 

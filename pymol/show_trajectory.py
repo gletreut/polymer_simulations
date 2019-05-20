@@ -39,6 +39,9 @@ print ("{:<20s}{:<s}".format("traj dir",trajdir))
 # load states in trajectory
 load_xyz_states(trajdir, prefix=prefix)
 
+# color first 3 monomers
+color_123()
+
 # draw box
 #if ( ('Lx' in params) and ('Ly' in params) and ('Lz' in params) ):
 #    print "making box!"

@@ -30,6 +30,7 @@
 #include <gsl/gsl_rng.h>
 
 #include "forcefield.h"
+#include "constraint.h"
 #include "utils.h"
 
 class MDWorld {
@@ -42,11 +43,12 @@ class MDWorld {
     double m_mass;
     double m_sig_hard_core;
     double m_energy_pot, m_energy_kin;
-    gsl_vector_uint *m_mobile;        // vector storing the status of one particle (mobile:1 or fixed:0)
-    gsl_matrix *m_x;                  // positions
-    gsl_matrix *m_v;                  // velocities
-    gsl_matrix *m_forces, *m_forces_tp;             // forces
-    std::vector<ForceField*> m_ffields; // list of active force fields (minus gradient of positional potential)
+    gsl_vector_uint *m_mobile;                // vector storing the status of one particle (mobile:1 or fixed:0)
+    gsl_matrix *m_x;                          // positions
+    gsl_matrix *m_v;                          // velocities
+    gsl_matrix *m_forces, *m_forces_tp;       // forces
+    std::vector<ForceField*> m_ffields;       // list of active force fields (minus gradient of positional potential)
+    std::vector<Constraint*> m_constraints;   // list of active constraints
 
     /* constructor / destructor */
     MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core, double gamma=1.0, double temp=1.0, double mass=1.0);
@@ -56,12 +58,15 @@ class MDWorld {
     // initiation methods
     void init_positions();
     void init_velocities(gsl_rng *rng);
+    void set_constraints();
 
     // update methods
     //void update_positions();
     //void update_velocities();
     void update_energy_forces();
     void update_energy_kinetics();
+    void constrain_x();
+    void constrain_v();
 
     // dump methods
     void dump_pos(std::ostream &mystream, bool index=true, bool positions=true, bool velocities=false, bool forces=false);
