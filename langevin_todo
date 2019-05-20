@@ -7,7 +7,7 @@ v polymer Gaussian
 v polymer bending rigidity
 v dump configuration by configuration
 v reloading previous configuration
-o polymer FENE
+v polymer FENE
 o hard-constraints
   * fix first monomer
   * keep second monomer on x axis
