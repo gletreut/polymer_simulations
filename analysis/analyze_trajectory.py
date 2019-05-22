@@ -1,7 +1,6 @@
 #################### imports ####################
 # standard
-import sys,io
-import os
+import sys,io,os,glob
 import numpy as np
 import yaml
 import argparse
@@ -57,6 +56,7 @@ mydict = {}
 mydict['threshold'] = 1.0
 mydict['dump_start'] = None
 mydict['dump_end'] = None
+mydict['ffac'] = 'gaussian'
 params['compute_contacts_args']=mydict
 
 #################### functions ####################
@@ -94,7 +94,7 @@ def compute_linear_fit(X,Y):
 
     return a,b,pval,lsq,r
 
-def compute_contacts(traj, outputdir='.', dump_start=None, dump_end=None, threshold=1.0, filename="cmat_xyz.dat"):
+def compute_contacts(traj, outputdir='.', dump_start=None, dump_end=None, threshold=1.0, filename="cmat_xyz.dat", ffac='gaussian'):
     """
     Compute the contact probability matrix from a given ensemble of states.
     """
@@ -103,9 +103,16 @@ def compute_contacts(traj, outputdir='.', dump_start=None, dump_end=None, thresh
     nstate = len(traj)
     state = traj[0]
     N = len(state)
-    print "Size of matrix N = {:d}".format(N)
+    print ("Size of matrix N = {:d}".format(N))
     count = 0
     C = np.zeros((N,N), dtype=np.float_)
+
+    # initialize form factor function
+    # function takes a numpy array of distances as input
+    if ffac == 'gaussian':
+        ffunc = lambda D: np.exp(-1.5*D**2/threshold**2)
+    else:
+        ffunc = lambda D: np.float_(np.uint(D <= threshold))
 
     # iterate over configuration
     for i in range(nstate)[dump_start:dump_end]:
@@ -119,8 +126,7 @@ def compute_contacts(traj, outputdir='.', dump_start=None, dump_end=None, thresh
             yn = Y[n]
             zn = Z[n]
             norm = np.sqrt((X-xn)**2 + (Y-yn)**2 + (Z-zn)**2)
-            occup = np.uint(norm <= threshold)
-            C[n] += occup
+            C[n] += ffunc(norm)
 
         # end loop on monomers
     # end loop on states
@@ -130,7 +136,7 @@ def compute_contacts(traj, outputdir='.', dump_start=None, dump_end=None, thresh
     fileout = os.path.join(outputdir, filename)
     with open(fileout,'w') as fout:
         np.savetxt(fout, C)
-    print "Contact matrix written to: {}".format(fileout)
+    print ("Contact matrix written to: {}".format(fileout))
 
     return
 
@@ -238,7 +244,7 @@ def plot_density_profiles(traj, iters, iter_sel, outputdir='.', xlo=-20., xhi=20
 #################### main ####################
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Analysis to analyze a trajectory of xyz files")
-    parser.add_argument('trajfiles', type=str, nargs='+', help='Paths to state.xyz files.')
+    parser.add_argument('trajdir', type=str, help='Paths to directory containing .xyz files.')
     #parser.add_argument('--paramfile', '-f',  type=file, required=True, help='Path to param file.')
     parser.add_argument('--outputdir', '-d',  type=str, required=False, default=os.path.join('.', 'analysis_xyz'), help='Path to output directory.')
     parser.add_argument('--compute_contacts',  action='store_true', help='Show density profiles.')
@@ -247,13 +253,20 @@ if __name__ == "__main__":
     # load arguments
     namespace = parser.parse_args(sys.argv[1:])
 
+    # trajdir
+    print ("{:<20s}{:<s}".format("trajdir", namespace.trajdir))
+    if not os.path.isdir(namespace.trajdir):
+        sys.exit("Directory does not exist!")
+
     # trajectory
+    trajfiles = glob.glob(os.path.join(namespace.trajdir,"state*.xyz"))
+    trajfiles.sort()
     traj = []
-    for f in namespace.trajfiles:
+    for f in trajfiles:
         if not os.path.isfile(f):
             print("File does not exist: {:s}".format(f))
             continue
-        print "loading file {}...".format(f)
+        print ("loading file {}...".format(f))
         with open(f,'r') as fin:
             state = np.loadtxt(f,skiprows=2)
             indices = state[:,0]
@@ -265,7 +278,7 @@ if __name__ == "__main__":
             traj.append(XYZ)
 
     nstates = len(traj)
-    print "nstates = {:d}".format(nstates)
+    print ("nstates = {:d}".format(nstates))
 
     if (nstates == 0):
         sys.exit("Empty set of states!")
