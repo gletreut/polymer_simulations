@@ -22,7 +22,7 @@ vector<string> utils::split(const string &s, char delim) {
 		    return elems;
 }
 
-void utils::print_vector(std::ostream &mystream, gsl_vector *v){
+void utils::print_vector(ostream &mystream, gsl_vector *v){
   mystream << left << dec << fixed;
 
   for (size_t i=0; i<v->size; ++i){
@@ -34,7 +34,7 @@ void utils::print_vector(std::ostream &mystream, gsl_vector *v){
   return;
 }
 
-void utils::print_matrix(std::ostream &mystream, gsl_matrix *m){
+void utils::print_matrix(ostream &mystream, gsl_matrix *m){
   mystream << left << dec << fixed;
 
   for (size_t i=0; i<m->size1; ++i){
@@ -48,6 +48,33 @@ void utils::print_matrix(std::ostream &mystream, gsl_matrix *m){
 
   return;
 }
+
+void utils::load_matrix(istream &mystream, gsl_matrix *m){
+	string line;
+	stringstream convert;
+	int i,j,n,p;
+	double val;
+
+  n=m->size1;
+  p=m->size2;
+
+	while (getline(mystream,line)){
+		convert.clear();
+    convert.str("");
+		convert.str(line);
+
+		if ( (convert >> i) && (convert >> j) && (convert >> val) ){
+			if ( (i<n) && (j<p) && !(i<0) && !(j<0) )
+				gsl_matrix_set(m,i,j,val);
+		}
+	}
+
+#if defined(DEBUG_UTIL)
+	cout << "MAT WITH SIZE " << n << " x " << p << " IMPORTED" << endl;
+#endif
+  return;
+}
+
 //template <typename T>
 //struct VectorSorter {
 //	vector<T> &myvec;

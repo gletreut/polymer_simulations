@@ -563,3 +563,109 @@ void PolymerKratkyPorod::energy_force(gsl_matrix *x, double *u, gsl_matrix *forc
   gsl_vector_free(fp);
   return;
 }
+
+//****************************************************************************
+// GEMField
+//****************************************************************************
+GEMField::GEMField(size_t offset, size_t N, double b, string filepath) :
+  m_offset(offset),
+  m_N(N),
+  m_b(b)
+{
+  /* declarations */
+  gsl_matrix *K(0);
+  ifstream fin;
+
+  /* initialize the matrix */
+  m_W = gsl_matrix_calloc(m_N,m_N);
+  K = gsl_matrix_calloc(m_N,m_N);
+  gsl_matrix_set_all(m_W,0.0);
+  gsl_matrix_set_all(K,0.0);
+
+  /* initialize the temporary vector */
+  m_fa = gsl_vector_calloc(m_N);
+
+  /* load couplings */
+  fin.open(filepath.c_str());
+  utils::load_matrix(fin, K);
+  fin.close();
+
+  /* compute quadratic matrix of interactions */
+  K2W(K,m_W);
+
+  /* initialize prefactor for force */
+  m_fpref = 3./(m_b*m_b);
+
+  /* exit */
+  gsl_matrix_free(K);
+}
+
+GEMField::~GEMField() {
+  gsl_matrix_free(m_W);
+  gsl_vector_free(m_fa);
+}
+
+/* methods */
+void GEMField::K2W(const gsl_matrix *K, gsl_matrix *W){
+  /*
+   * Compute quadratic matrix of interactions from coupling matrix.
+   */
+  double kij, w;
+
+  gsl_matrix_set_all(W,0.0);
+  for (size_t i=0; i<m_N; ++i){
+    for (size_t j=i; j<m_N; ++j){
+      // coupling for i,j
+      kij = gsl_matrix_get(K,i,j);
+
+      // ri^2 term
+      w = gsl_matrix_get(W,i,i);
+      w += kij;
+      gsl_matrix_set(W,i,i,w);
+
+      // rj^2 term
+      w = gsl_matrix_get(W,j,j);
+      w += kij;
+      gsl_matrix_set(W,j,j,w);
+
+      // ri.rj term
+      w = gsl_matrix_get(W,i,j);
+      w += -kij;
+      gsl_matrix_set(W,i,j,w);
+
+      // rj.ri term
+      w = gsl_matrix_get(W,j,i);
+      w += -kij;
+      gsl_matrix_set(W,j,i,w);
+    }
+  }
+
+  return;
+}
+void GEMField::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the potential energy and force (minus gradient) of a GEM potential.
+   *   \beta U(X, Y, Z) = 3/(2b^2) [ X^T W X + Y^T W Y + Z^T W Z],
+   *   where X, Y and Z are vectors of size N.
+   */
+
+  // make sub-matrix corresponding to atoms belonging to the GEM
+  gsl_matrix_view xsub = gsl_matrix_submatrix(x, m_offset, 0, m_N, x->size2);
+  gsl_matrix_view fsub = gsl_matrix_submatrix(forces, m_offset, 0, m_N, x->size2);
+
+  // iterate on the x,y and z coordinates and compute the force and energy
+  // contributions
+  for (size_t d=0; d<3; ++d){
+    gsl_vector_view xa = gsl_matrix_column(&xsub.matrix,d);
+    gsl_vector_view fa = gsl_matrix_column(&fsub.matrix,d);
+
+    // update force
+    linalg_dgemv(0, -m_fpref, m_W, &xa.vector, 0.0, m_fa);  // fa = -3/b^2 W.X
+    linalg_daxpy(1.0, m_fa, &fa.vector);
+
+    // update energy
+    *u += -0.5*linalg_ddot(&xa.vector, m_fa);               // U = 3/(2b^2) X^T W X
+  }
+
+  return;
+}

@@ -36,6 +36,7 @@ namespace utils {
 
   void print_vector(std::ostream &mystream, gsl_vector *v);
   void print_matrix(std::ostream &mystream, gsl_matrix *m);
+  void load_matrix(std::istream &mystream, gsl_matrix *m);
 };
 
 // include template definitions

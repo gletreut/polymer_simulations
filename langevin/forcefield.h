@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <sstream>
 #include <cmath>
 #include <vector>
@@ -181,6 +182,35 @@ class PolymerKratkyPorod : public ForceField {
 
     /* methods */
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+};
+
+class GEMField : public ForceField {
+  /*
+   * Class defining a Gaussian Effective Model force field.
+   * It consists of elastic interactions to be overlaid on a Polymer force
+   * field. It is parametrized by a matrix W such that the potential is:
+   *   \beta U(X, Y, Z) = 3/(2b^2) [ X^T W X + Y^T W Y + Z^T W Z],
+   *   where X, Y and Z are vectors of size N.
+   */
+
+  public:
+    /* attributes */
+    size_t m_offset;    // index of first monomer
+    size_t m_N;         // number of monomers
+    double m_b;
+    gsl_matrix *m_W;    // interaction potential matrix.
+
+    /* constructor and destructor */
+    GEMField(size_t offset, size_t N, double b, std::string filepath);
+    ~GEMField();
+
+    /* methods */
+    void K2W(const gsl_matrix *K, gsl_matrix *W);
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+
+  private:
+    double m_fpref;
+    gsl_vector *m_fa;
 };
 
 #endif
