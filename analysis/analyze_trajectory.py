@@ -16,7 +16,7 @@ from scipy.stats import gamma
 # custom
 origin=os.path.dirname(os.path.realpath(sys.argv[0]))
 sys.path.append(origin)
-#from utils import read_xyz
+from utils import write_map, read_traj_xyz
 
 #################### global params ####################
 
@@ -38,9 +38,10 @@ plt.rcParams['axes.linewidth']=0.5
 # parameters
 params={}
 params['delta_t'] = 0.01
-params['istart'] = 700*1e5
-#params['istart'] = None
-params['iend'] = 800*1e5
+#params['istart'] = 700*1e5
+params['istart'] = None
+#params['iend'] = 800*1e5
+params['iend'] = None
 mydict = {}
 #mydict['iter_sel'] = (np.arange(10)+770)*1e5
 mydict['iter_sel'] = (np.arange(2)+772)*1e5
@@ -110,8 +111,10 @@ def compute_contacts(traj, outputdir='.', dump_start=None, dump_end=None, thresh
     # initialize form factor function
     # function takes a numpy array of distances as input
     if ffac == 'gaussian':
+        print "Gaussian form factor"
         ffunc = lambda D: np.exp(-1.5*D**2/threshold**2)
     else:
+        print "Theta form factor"
         ffunc = lambda D: np.float_(np.uint(D <= threshold))
 
     # iterate over configuration
@@ -134,8 +137,9 @@ def compute_contacts(traj, outputdir='.', dump_start=None, dump_end=None, thresh
 
     # write
     fileout = os.path.join(outputdir, filename)
-    with open(fileout,'w') as fout:
-        np.savetxt(fout, C)
+    write_map(C, fileout)
+#    with open(fileout,'w') as fout:
+#        np.savetxt(fout, C)
     print ("Contact matrix written to: {}".format(fileout))
 
     return
@@ -254,29 +258,36 @@ if __name__ == "__main__":
     namespace = parser.parse_args(sys.argv[1:])
 
     # trajdir
-    print ("{:<20s}{:<s}".format("trajdir", namespace.trajdir))
-    if not os.path.isdir(namespace.trajdir):
+    if os.path.isdir(namespace.trajdir):
+        print ("{:<20s}{:<s}".format("trajdir", namespace.trajdir))
+
+        # trajectory
+        trajfiles = glob.glob(os.path.join(namespace.trajdir,"state*.xyz"))
+        trajfiles.sort()
+        traj = []
+        for f in trajfiles:
+            if not os.path.isfile(f):
+                print("File does not exist: {:s}".format(f))
+                continue
+            print ("loading file {}...".format(f))
+            with open(f,'r') as fin:
+                state = np.loadtxt(f,skiprows=2)
+                indices = state[:,0]
+                XYZ = state[:,1:]
+                if ( len(np.unique(np.diff(indices))) != 1 ):
+                        sys.exit("Indices are not consecutive in the file.")
+                idx = np.argsort(indices)
+                XYZ = XYZ[idx]
+                traj.append(XYZ)
+
+    elif os.path.isfile(namespace.trajdir):
+        print ("{:<20s}{:<s}".format("trajfile", namespace.trajdir))
+        traj, iters = read_traj_xyz(namespace.trajdir)
+        traj = np.array(traj)
+        traj = traj[:,:,1:]
+        print traj.shape
+    else:
         sys.exit("Directory does not exist!")
-
-    # trajectory
-    trajfiles = glob.glob(os.path.join(namespace.trajdir,"state*.xyz"))
-    trajfiles.sort()
-    traj = []
-    for f in trajfiles:
-        if not os.path.isfile(f):
-            print("File does not exist: {:s}".format(f))
-            continue
-        print ("loading file {}...".format(f))
-        with open(f,'r') as fin:
-            state = np.loadtxt(f,skiprows=2)
-            indices = state[:,0]
-            XYZ = state[:,1:]
-            if ( len(np.unique(np.diff(indices))) != 1 ):
-                    sys.exit("Indices are not consecutive in the file.")
-            idx = np.argsort(indices)
-            XYZ = XYZ[idx]
-            traj.append(XYZ)
-
     nstates = len(traj)
     print ("nstates = {:d}".format(nstates))
 

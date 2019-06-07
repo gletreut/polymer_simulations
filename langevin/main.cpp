@@ -180,14 +180,14 @@ int main(int argc, char *argv[]){
 
   /* initialize constraints */
   /** attach monomer 0 to origin **/
-  constraint = new PointConstraint(0,0.0,0.0,0.0);
-  world->m_constraints.push_back(constraint);
+  //constraint = new PointConstraint(0,0.0,0.0,0.0);
+  //world->m_constraints.push_back(constraint);
   /** constrain axis of monomers (0,1) **/
-  constraint = new AxisConstraint(1,0.0,0.0,0.0,1.0,0.0,0.0);
-  world->m_constraints.push_back(constraint);
+  //constraint = new AxisConstraint(1,0.0,0.0,0.0,1.0,0.0,0.0);
+  //world->m_constraints.push_back(constraint);
   /** constrain plane of monomers (0,1,2) **/
-  constraint = new PlaneConstraint(2,0.0,0.0,0.0,0.0,0.0,1.0);
-  world->m_constraints.push_back(constraint);
+  //constraint = new PlaneConstraint(2,0.0,0.0,0.0,0.0,0.0,1.0);
+  //world->m_constraints.push_back(constraint);
 
   /* initialize simulation */
   if (pathtoinitconf == "") {

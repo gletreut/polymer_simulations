@@ -20,7 +20,7 @@ def read_traj_xyz(filepath,istart=None,iend=None):
     iters = []
     traj = []
     #pattern="Timestep:(\d+)$"
-    pattern="Timestep:(\d+).*$"
+    pattern="Timestep: (\d+).*$"
     fin = open(filepath,'r')
     state = []
 
@@ -78,8 +78,45 @@ def read_traj_xyz(filepath,istart=None,iend=None):
     print ("niters = {:d}    nconfs = {:d}".format(len(iters),len(traj)))
     return traj, iters
 
+def read_map(tfile,xy=False):
+    # read matrices
+    DATA=np.loadtxt(tfile)
+    NN,D=DATA.shape
 
+    if (D != 3):
+        print ("wrong format: D={:d}!".format(D))
+        sys.exit()
 
+    N = np.sqrt(float(NN))
+    if (int(N) != N):
+        print ("Length is not a square root! sqrt(NN) = {:.4g}".format(N))
+    N = int(N)
 
+#    print "{:<20s}{:<d}".format("N",N)
+#    print "{:<20s}{:<d}".format("D",D)
 
+    MAT=np.reshape(DATA[:,2],(N,N))
+    if not (xy):
+        return MAT
+    else:
+        X=np.reshape(DATA[:,0],(N,N))
+        Y=np.reshape(DATA[:,1],(N,N))
+        return X,Y,MAT
+
+def write_map(MAT,tfile,xy=True):
+    if (len(MAT.shape) != 2):
+        raise ValueError("wrong format: len(shape)={:d}!".format(len(MAT.shape)))
+
+    N,N=MAT.shape
+
+    fout = open(tfile,"w")
+    for i in range(N):
+        for j in range(N):
+            val = MAT[i][j]
+            if (xy):
+                fout.write("{:<20d}{:<20d}{:<20.8e}\n".format(i,j,val))
+            else:
+                fout.write("{:<20.8e}\n".format(val))
+    fout.close()
+    return
 
