@@ -44,10 +44,20 @@ MDWorld::MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_
     throw invalid_argument("Number of particles must be larger than zero!");
   }
 
-  /* initializations */
+  init();
+}
+
+MDWorld::~MDWorld() {
+  clear();
+}
+
+void MDWorld::init() {
+
+  // energy
   m_energy_pot=0.;
   m_energy_kin=0.;
 
+  // gsl vectors
   m_x = gsl_matrix_calloc(m_npart, 3);
   gsl_matrix_set_all(m_x, 0.0);
   m_v = gsl_matrix_calloc(m_npart, 3);
@@ -57,15 +67,29 @@ MDWorld::MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_
   m_forces_tp = gsl_matrix_calloc(m_npart, 3);
   gsl_matrix_set_all(m_forces_tp, 0.0);
 
+  // vectors
   m_ffields.clear();
   m_constraints.clear();
+
+  return;
 }
 
-MDWorld::~MDWorld() {
-  gsl_matrix_free(m_x);
-  gsl_matrix_free(m_v);
-  gsl_matrix_free(m_forces);
-  gsl_matrix_free(m_forces_tp);
+void MDWorld::clear() {
+  /* clear vectors and matrices */
+
+  /* delete gsl objects */
+  if (m_x != nullptr){
+    gsl_matrix_free(m_x);
+  }
+  if (m_v != nullptr){
+    gsl_matrix_free(m_v);
+  }
+  if (m_forces != nullptr){
+    gsl_matrix_free(m_forces);
+  }
+  if (m_forces_tp != nullptr){
+    gsl_matrix_free(m_forces_tp);
+  }
 
   /* delete forcefields */
   for (vector<ForceField*>::iterator it=m_ffields.begin(); it!=m_ffields.end(); ++it){
@@ -80,19 +104,19 @@ MDWorld::~MDWorld() {
       delete (*it);
     }
   }
+  return;
 }
-
-void MDWorld::init_positions(){
+void MDWorld::init_positions_lattice(double delta){
   /*
-   * Initialize positions
+   * Initialize positions on a lattice.
    */
 
   size_t counter;
   size_t nx, ny, nz;
-  double delta;
+  //double delta;
   double x,y,z;
 
-  delta = m_sig_hard_core*pow(2.,1./6);
+  //delta = m_sig_hard_core*pow(2.,1./6);
   nx = m_lx/delta;
   ny = m_ly/delta;
   nz = m_lz/delta;
@@ -278,6 +302,21 @@ MDWorld::dump_thermo(ostream &mystream){
   mystream << setw(10) << setprecision(0) << fixed << noshowpos << m_npart;
   mystream << setw(18) << setprecision(8) << scientific << showpos << m_energy_pot;
   mystream << setw(18) << setprecision(8) << scientific << showpos << m_energy_kin;
+  return;
+}
+
+void
+MDWorld::print_infos(ostream &mystream) {
+  /*
+   * print some information on the world object
+   */
+
+  mystream << left << dec << fixed;
+  mystream << setw(20) << "npart" << setw(20) << setprecision(0) << noshowpos << m_npart << endl;
+  mystream << setw(20) << "gamma" << setw(20) << setprecision(6) << showpos << m_gamma << endl;
+  mystream << setw(20) << "temp" << setw(20) << setprecision(6) << showpos << m_temp << endl;
+  mystream << setw(20) << "mass" << setw(20) << setprecision(6) << showpos << m_mass << endl;
+  mystream << setw(20) << "box" << setw(20) << setprecision(6) << showpos << m_lx << setw(20) << m_ly << setw(20) << m_lz << endl;
   return;
 }
 

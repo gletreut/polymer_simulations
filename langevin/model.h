@@ -51,12 +51,16 @@ class MDWorld {
     std::vector<Constraint*> m_constraints;   // list of active constraints
 
     /* constructor / destructor */
-    MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core, double gamma=1.0, double temp=1.0, double mass=1.0);
+    MDWorld(size_t npart=1, double lx=1., double ly=1., double lz=1., double sig_hard_core=1., double gamma=1.0, double temp=1.0, double mass=1.0);
     virtual ~MDWorld();
 
     /* methods */
+    // clearing/init
+    void init();
+    void clear();
+
     // initiation methods
-    void init_positions();
+    void init_positions_lattice(double delta);
     void init_velocities(gsl_rng *rng);
     void set_constraints();
 
@@ -77,6 +81,9 @@ class MDWorld {
     // loading methods
     void load_dat(std::string filein);
     void load_xyz(std::string filein);
+
+    // miscellaneous
+    void print_infos(std::ostream &mystream);
 };
 
 //class Polymer : public MDWorld {

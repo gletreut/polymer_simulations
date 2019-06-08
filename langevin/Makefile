@@ -16,6 +16,7 @@ CFLAGS += -DGSL
 LDLIBS += -lgsl -lgslcblas
 endif
 LDLIBS += -lboost_filesystem -lboost_system
+LDLIBS += -lyaml-cpp
 
 SRC = main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper.cpp constraint.cpp
 OBJS = $(SRC:.cpp=.o)

@@ -26,6 +26,9 @@
 // 2) BOOST
 #include <boost/filesystem.hpp>
 
+// 3) yaml-cpp
+#include <yaml-cpp/yaml.h>
+
 // local library
 #include "global.h"
 #include "utils.h"
@@ -45,9 +48,13 @@ const gsl_rng_type* RDT = gsl_rng_ranlxs1;
 //const gsl_rng_type* RDT = gsl_rng_mt19937;
 const size_t seed = 123;
 
-
 //** FUNCTION
 void check_params_keys(map<string,double> myparams, vector<string> list);
+std::string yamltype_str(YAML::NodeType::value type);
+void yaml_init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world);
+void yaml_init_rng(YAML::Node config, gsl_rng *rng);
+void yaml_init_stepper(YAML::Node config, gsl_rng *rng, MDWorld *world, MDStepper* &stepper);
+void yaml_init_forcefields(YAML::Node config, MDWorld *world);
 
 //** MAIN
 int main(int argc, char *argv[]){
@@ -58,6 +65,7 @@ int main(int argc, char *argv[]){
 	ifstream fin;
 	ofstream fpos_dat, fpos_xyz,fthermo;
 	map<string,double> params;
+  YAML::Node config;
   gsl_rng *rng(0);
 
   MDWorld *world(0);
@@ -82,6 +90,27 @@ int main(int argc, char *argv[]){
     else {
       pathtoinitconf = "";
     }
+
+  /* load parameters */
+  config = YAML::Load(cin);  // load yaml from standart input
+  cout << config << endl;
+
+  /* initialize random number generator */
+  rng = gsl_rng_alloc(RDT);
+  yaml_init_rng(config, rng);
+
+  /* initialize MDWorld */
+  world = new MDWorld();
+  yaml_init_world(config, rng, world);
+  world->print_infos(cout);
+
+  /* initialize MDStepper */
+  yaml_init_stepper(config, rng, world, stepper);
+  stepper->print_infos(cout);
+
+  /* load force fields */
+  yaml_init_forcefields(config, world);
+  return 0;
 
 	cout << "Enter parameters values in the form: <key> <value> for the following keys: (iter,dt,T,N,b,lp,dump)" << endl;
 	load_map<double>(cin,params);
@@ -149,17 +178,6 @@ int main(int argc, char *argv[]){
 	lp=params["lp"];                          // persistence length
 	N=params["N"];                            // number of monomers
 
-  /* initialize random number generator */
-  rng = gsl_rng_alloc(RDT);
-  gsl_rng_set(rng, seed);
-
-  /* initialize MDWorld */
-  world = new MDWorld(params["npart"], params["lx"], params["ly"], params["lz"], params["sig_hard_core"]);
-
-  /* initialize MDStepper */
-  //stepper = new MDStepper_VVerlet(world, dt, world->m_gamma);
-  stepper = new LangStepper_VVerlet(world, rng, dt, world->m_gamma);
-
   /* initialize force fields */
   /** confinement **/
   //ffield = new ConfinmentBox(-0.5*world->m_lx, +0.5*world->m_lx, -0.5*world->m_ly,+0.5*world->m_ly,-0.5*world->m_lz,+0.5*world->m_lz,1.0,1.0);
@@ -192,7 +210,7 @@ int main(int argc, char *argv[]){
   /* initialize simulation */
   if (pathtoinitconf == "") {
     cout << "Initializing positions on a lattice" << endl;
-    world->init_positions();
+    world->init_positions_lattice(1.123);
     cout << "Initializing velocities randomly" << endl;
     world->init_velocities(rng);
   }
@@ -307,5 +325,285 @@ void check_params_keys(map<string,double> myparams, vector<string> list)
       throw invalid_argument("Required key not found in parameter map!");
     }
   }
+  return;
+}
+
+std::string yamltype_str(YAML::NodeType::value type){
+  if (type == YAML::NodeType::Undefined) {
+    return "Undefined";
+  }
+  else if (type == YAML::NodeType::Null) {
+    return "Null";
+  }
+  else if (type == YAML::NodeType::Scalar) {
+    return "Scalar";
+  }
+  else if (type == YAML::NodeType::Sequence) {
+    return "Sequence";
+  }
+  else if (type == YAML::NodeType::Map) {
+    return "Map";
+  }
+  else {
+    return "Error";
+  }
+}
+
+void yaml_init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
+  /*
+   * Re-initialize the MDWorld object based on the input parameters.
+   */
+
+  string rootkey;
+  YAML::Node lineup;
+
+  rootkey = "MDWorld";
+
+  // check that rootkey is in the config
+  if (! config[rootkey]) {
+    cout << config;
+    cout << "root key: " << rootkey << endl;
+    throw invalid_argument("Missing the root key!");
+  }
+  lineup = config[rootkey];
+
+  // initialize new world based on the number of particles
+  world->clear();
+  world->m_npart = lineup["npart"].as<size_t>();
+  world->init();
+
+  // box dimensions
+  YAML::Node box = lineup["box"];
+  if (! box ) {
+    throw invalid_argument("Missing key: box");
+  }
+  if (! (box.Type() == YAML::NodeType::Sequence) ){
+    cout << box;
+    throw invalid_argument("<box> must be a sequence.");
+  }
+  world->m_lx = box[0].as<double>();
+  world->m_ly = box[1].as<double>();
+  world->m_lz = box[2].as<double>();
+
+  // thermodynamics parameters
+  if (lineup["gamma"]){
+    world->m_gamma = lineup["gamma"].as<double>();
+  }
+  if (lineup["temp"]){
+    world->m_temp = lineup["temp"].as<double>();
+  }
+  if (lineup["mass"]){
+    world->m_mass = lineup["mass"].as<double>();
+  }
+
+  // positions initialization
+  YAML::Node init_pos = lineup["init_pos"];
+  if (! init_pos){
+    throw invalid_argument("Missing key: init_pos");
+  }
+  if (! (init_pos.Type() == YAML::NodeType::Map) ){
+    cout << init_pos;
+    throw invalid_argument("<init_pos> must be dictionary.");
+  }
+  YAML::Node mode, dist;
+  mode = init_pos["mode"];
+  if (! mode){
+    throw invalid_argument("<mode> key missing.");
+  }
+  dist = init_pos["dist"];
+  if (! dist){
+    throw invalid_argument("<dist> key missing.");
+  }
+  string modestr = mode.as<string>();
+
+  if (modestr == "lattice") {
+        cout << "Initializing positions on a lattice" << endl;
+        world->init_positions_lattice(dist.as<double>());
+  }
+  else {
+    cout << "mode: " << mode.as<string>() << endl;
+    throw invalid_argument("Unrecognized <mode>");
+  }
+
+  // velocities initialization
+  cout << "Initializing velocities randomly" << endl;
+  world->init_velocities(rng);
+
+  return;
+}
+
+void yaml_init_rng(YAML::Node config, gsl_rng *rng) {
+  /*
+   * initialize random number generator
+   */
+
+  double seed;
+
+  cout << left << dec << fixed;
+  if (! config["seed"]) {
+    cout << config;
+    cout << "<seed> not found --> default value." << endl;
+    seed = 123;
+  }
+  else {
+    seed = config["seed"].as<size_t>();
+  }
+  cout << setw(20) << "seed" << setw(20) << setprecision(0) << noshowpos << seed << endl;
+  gsl_rng_set(rng, seed);
+
+  return;
+}
+
+void yaml_init_stepper(YAML::Node config, gsl_rng *rng, MDWorld *world, MDStepper* &stepper) {
+  /*
+   * initialize a stepper
+   */
+  double dt;
+  string rootkey;
+  string method;
+  YAML::Node lineup;
+
+  rootkey = "stepper";
+  // check that rootkey is in the config
+  if (! config[rootkey]) {
+    cout << config;
+    cout << "root key: " << rootkey << endl;
+    throw invalid_argument("Missing the root key!");
+  }
+  lineup = config[rootkey];
+
+  // integration timestep
+  YAML::Node dtnode = lineup["dt"];
+  if (! dtnode) {
+    throw invalid_argument("<dt> key missing.");
+  }
+  dt = dtnode.as<double>();
+
+  //method
+  YAML::Node mnode = lineup["method"];
+  if (! mnode) {
+    throw invalid_argument("<method> key missing.");
+  }
+  method = mnode.as<string>();
+
+  // instantiate the stepper
+  if (method == "MD_VVerlet") {
+    cout << "Initializing method: MD_VVerlet" << endl;
+    stepper = new MDStepper_VVerlet(world, dt, world->m_gamma);
+  }
+  else if (method == "Lang_VVerlet") {
+    cout << "Initializing method: Lang_VVerlet" << endl;
+    stepper = new LangStepper_VVerlet(world, rng, dt, world->m_gamma);
+  }
+  else {
+    throw invalid_argument("<method> must be one of the following: MD_VVerlet, Lang_VVerlet.");
+  }
+
+  return;
+}
+
+void yaml_init_forcefields(YAML::Node config, MDWorld *world) {
+  /*
+   * Initialize forcefields
+   */
+
+  string rootkey;
+  YAML::Node lineup;
+  ForceField *ffield(0);
+
+  rootkey = "forcefields";
+
+  // check that rootkey is in the config
+  if (! config[rootkey]) {
+    cout << config;
+    cout << "root key: " << rootkey << endl;
+    throw invalid_argument("Missing the root key!");
+  }
+  lineup = config[rootkey];
+
+  // check that we have a map
+  if ( lineup.Type() == YAML::NodeType::Null){ // if null just return (no forcefields)
+    cout << "No force field detected" << endl;
+    return;
+  }
+  else if ( lineup.Type() != YAML::NodeType::Map){ // error
+    throw invalid_argument("<forcefield> must be a map");
+  }
+
+  // iterate on nodes and add forcefields
+  for (YAML::const_iterator it=lineup.begin(); it!=lineup.end(); ++it){
+    string key;
+    YAML::Node FNode;
+    key = it->first.as<string>();
+    FNode = it->second;
+    if (key == "ConfinmentBox") {
+      double sigma, epsilon;
+      cout << "Adding force field of type: " << key << endl;
+      cout << "Parameters:" << endl;
+      cout << FNode << endl;
+      sigma = FNode["sigma"].as<double>();
+      epsilon = FNode["epsilon"].as<double>();
+      ffield = new ConfinmentBox(-0.5*world->m_lx, +0.5*world->m_lx, -0.5*world->m_ly,+0.5*world->m_ly,-0.5*world->m_lz,+0.5*world->m_lz,sigma,epsilon);
+      world->m_ffields.push_back(ffield);
+    }
+    else if (key == "ConfinmentSphere") {
+      double radius, sigma, epsilon;
+      cout << "Adding force field of type: " << key << endl;
+      cout << "Parameters:" << endl;
+      cout << FNode << endl;
+      radius = FNode["radius"].as<double>();
+      sigma = FNode["sigma"].as<double>();
+      epsilon = FNode["epsilon"].as<double>();
+      ffield = new ConfinmentSphere(radius, sigma, epsilon);
+      world->m_ffields.push_back(ffield);
+    }
+    else if (key == "PolymerGaussian") {
+      size_t offset, N;
+      double b;
+      cout << "Adding force field of type: " << key << endl;
+      cout << "Parameters:" << endl;
+      cout << FNode << endl;
+      offset = FNode["offset"].as<size_t>();
+      N = FNode["N"].as<size_t>();
+      b = FNode["b"].as<double>();
+      ffield = new PolymerGaussian(offset, N, b);
+      world->m_ffields.push_back(ffield);
+    }
+    else if (key == "PolymerHarmonic") {
+      size_t offset, N;
+      double ke, r0;
+      cout << "Adding force field of type: " << key << endl;
+      cout << "Parameters:" << endl;
+      cout << FNode << endl;
+      offset = FNode["offset"].as<size_t>();
+      N = FNode["N"].as<size_t>();
+      ke = FNode["ke"].as<double>();
+      r0 = FNode["r0"].as<double>();
+      ffield = new PolymerHarmonic(offset, N, ke, r0);
+      world->m_ffields.push_back(ffield);
+    }
+  else {
+    cout << "Unrecognized force field type: " << key << endl;
+  }
+
+  }
+  /* initialize force fields */
+  /** confinement **/
+  //ffield = new ConfinmentBox(-0.5*world->m_lx, +0.5*world->m_lx, -0.5*world->m_ly,+0.5*world->m_ly,-0.5*world->m_lz,+0.5*world->m_lz,1.0,1.0);
+  //ffield = new ConfinmentSphere(params["radius_conf"],1.0,1.0);
+  //world->m_ffields.push_back(ffield);
+  /** polymer **/
+  //ffield = new PolymerGaussian(0,world->m_npart,1.0);
+  //world->m_ffields.push_back(ffield);
+  //ffield = new PolymerHarmonic(0,world->m_npart,200.0,1.);
+  //world->m_ffields.push_back(ffield);
+  //ffield = new PolymerFENE(0,world->m_npart, 30.0, 1.5, 1.0, 1.0);
+  //world->m_ffields.push_back(ffield);
+  //ffield = new PolymerKratkyPorod(0,world->m_npart,3.0);
+  //world->m_ffields.push_back(ffield);
+  /** GEM **/
+  //ffield = new GEMField(0, world->m_npart, 1., "kmat.in");
+  //world->m_ffields.push_back(ffield);
+
   return;
 }

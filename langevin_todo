@@ -22,4 +22,7 @@ o GEM
 # Docker file
 ## boost
 Need to install boost with:
-apt-get -y install libboost-all-dev
+apt-get install -y libboost-all-dev
+## yaml-cpp
+apt-get install -y libyaml-cpp-dev
+check the official repository: https://github.com/jbeder/yaml-cpp/tree/master/include/yaml-cpp

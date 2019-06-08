@@ -49,6 +49,20 @@ void MDStepper::call_constraints_v(){
   m_world->constrain_v();        // apply constraints
   return;
 }
+
+void
+MDStepper::print_infos(ostream &mystream) {
+  /*
+   * print some information on the stepper object
+   */
+
+  mystream << left << dec << fixed;
+  mystream << setw(20) << "dt" << setw(20) << setprecision(6) << noshowpos << m_dt << endl;
+  mystream << setw(20) << "gamma" << setw(20) << setprecision(6) << showpos << m_gam << endl;
+  mystream << setw(20) << "1/m" << setw(20) << setprecision(6) << showpos << m_mass_i << endl;
+  return;
+}
+
 //****************************************************************************
 // MDStepper_VVerlet
 //****************************************************************************
@@ -86,6 +100,21 @@ void MDStepper_VVerlet::step() {
   linalg_dscal(m_gam_i, m_v);             // V <- 1/(1 + \gamma dt/2) V
   call_constraints_v();
 
+  return;
+}
+
+void
+MDStepper_VVerlet::print_infos(ostream &mystream) {
+  /*
+   * print some information on the stepper object
+   */
+
+  MDStepper::print_infos(mystream);
+  mystream << left << dec << fixed;
+  mystream << setw(20) << "dt/2" << setw(20) << setprecision(6) << noshowpos << m_dt_half << endl;
+  mystream << setw(20) << "1-\\gamma.dt/2" << setw(20) << setprecision(6) << showpos << m_gam_m << endl;
+  mystream << setw(20) << "1/(1+\\gamma.dt/2)" << setw(20) << setprecision(6) << showpos << m_gam_i << endl;
+  mystream << setw(20) << "1/m . dt/2" << setw(20) << setprecision(6) << showpos << m_pref_force << endl;
   return;
 }
 
@@ -159,6 +188,18 @@ void LangStepper_VVerlet::step() {
   linalg_dscal(m_gam_i, m_v);             // V <- 1/(1 + \gamma dt/2) V
   call_constraints_v();
 
+  return;
+}
+
+void
+LangStepper_VVerlet::print_infos(ostream &mystream) {
+  /*
+   * print some information on the stepper object
+   */
+
+  MDStepper_VVerlet::print_infos(mystream);
+  mystream << left << dec << fixed;
+  mystream << setw(20) << "std noise" << setw(20) << setprecision(6) << showpos << m_fbd_norm << endl;
   return;
 }
 

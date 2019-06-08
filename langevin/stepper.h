@@ -29,7 +29,7 @@ class MDStepper {
     gsl_matrix *m_x, *m_v, *m_f;
 
     /* constructor / destructor */
-    MDStepper(MDWorld *world, double dt, double gam=1.0);
+    MDStepper(MDWorld *world, double dt=0.001, double gam=0.0);
     virtual ~MDStepper();
 
     /* methods */
@@ -37,6 +37,7 @@ class MDStepper {
     void call_constraints_x();
     void call_constraints_v();
     virtual void step()=0;
+    virtual void print_infos(std::ostream &mystream);
 };
 
 class MDStepper_VVerlet: public MDStepper {
@@ -48,11 +49,12 @@ class MDStepper_VVerlet: public MDStepper {
     double m_pref_force;
 
     /* constructor / destructor */
-    MDStepper_VVerlet(MDWorld *world, double dt, double gam=0.0);
+    MDStepper_VVerlet(MDWorld *world, double dt=0.001, double gam=0.0);
     ~MDStepper_VVerlet();
 
     /* methods */
     void step();
+    virtual void print_infos(std::ostream &mystream);
 };
 
 class LangStepper_VVerlet: public MDStepper_VVerlet {
@@ -63,12 +65,13 @@ class LangStepper_VVerlet: public MDStepper_VVerlet {
     gsl_rng *m_rng;
 
     /* constructor / destructor */
-    LangStepper_VVerlet(MDWorld *world, gsl_rng *rng, double dt, double gam=1.0);
+    LangStepper_VVerlet(MDWorld *world, gsl_rng *rng, double dt=0.001, double gam=1.0);
     ~LangStepper_VVerlet();
 
     /* methods */
     void add_brownian_forces();
     void step();
+    void print_infos(std::ostream &mystream);
 };
 
 #endif
