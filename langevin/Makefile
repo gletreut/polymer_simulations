@@ -18,7 +18,7 @@ endif
 LDLIBS += -lboost_filesystem -lboost_system
 LDLIBS += -lyaml-cpp
 
-SRC = main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper.cpp constraint.cpp
+SRC = main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper.cpp constraint.cpp integration.cpp
 OBJS = $(SRC:.cpp=.o)
 PROG = ../bin/simu_langevin
 
@@ -27,7 +27,7 @@ all: $(PROG)
 $(PROG): $(OBJS)
 	 $(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS) $(LDLIBS)
 
-main.o: main.cpp utils.h linalg.h forcefield.h model.h stepper.h global.h
+main.o: main.cpp utils.h linalg.h forcefield.h model.h stepper.h global.h integration.h
 	$(CC) $(CFLAGS) -c main.cpp
 
 model.o: model.h model.cpp
@@ -38,6 +38,9 @@ forcefield.o: forcefield.h forcefield.cpp
 
 constraint.o: constraint.h constraint.cpp
 	$(CC) $(CFLAGS) -c constraint.cpp
+
+integration.o: integration.h integration.cpp
+	$(CC) $(CFLAGS) -c integration.cpp
 
 stepper.o: stepper.h stepper.cpp
 	$(CC) $(CFLAGS) -c stepper.cpp
