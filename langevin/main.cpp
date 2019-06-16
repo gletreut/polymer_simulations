@@ -5,13 +5,11 @@
 //*
 //*
 //* Author: Guillaume Le Treut
-//*	CEA - 2014
-//*
-//* Compilation with:
-//* g++ -std=c++11 main.cpp
+//*	UCSD - 2019
 //*
 //*******************************************************************************
 #include <cstdlib>
+#include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -20,30 +18,58 @@
 #include <limits>
 #include <map>
 
-#include "model.h"
+// external library
+// 1) GSL
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+#include <gsl/gsl_vector.h>
+
+// 2) BOOST
+#include <boost/filesystem.hpp>
+
+// 3) yaml-cpp
+#include <yaml-cpp/yaml.h>
+
+// local library
+#include "global.h"
 #include "utils.h"
-//#include "geometry.cpp"
+#include "linalg.h"
+#include "model.h"
+#include "stepper.h"
+#include "integration.h"
 
 using namespace std;
 using namespace utils;
+namespace fs = boost::filesystem;
+namespace yc = yaml_config;
 
 //** GLOBAL
 double macheps=std::numeric_limits<double>::epsilon();
-vector<string> required_parameters = vector<string>({"length_birth","length_div"});
+vector<string> required_parameters = vector<string>({"lx", "ly", "lz", "eps_LJ","npart_max", "dt", "itermax", "idump_thermo", "idump_pos"});
+/* random number generator type */
+const gsl_rng_type* RDT = gsl_rng_ranlxs1;
+//const gsl_rng_type* RDT = gsl_rng_mt19937;
+const size_t seed = 123;
 
 //** FUNCTION
 void check_params_keys(map<string,double> myparams, vector<string> list);
 
 //** MAIN
 int main(int argc, char *argv[]){
-	string pathtoinput, pathtooutput, pathtoconf="", name;
+	string pathtoinput, pathtooutput, pathtoinitconf, pathname, trajname;
 	stringstream convert;
+  fs::path state_path;
 	vector<string> parsechain;
 	ifstream fin;
-	ofstream fpol,fen;
+	ofstream fpos_dat, fpos_xyz,fthermo;
 	map<string,double> params;
-	double dt, T, b, lp;
-	size_t iter, idump, N;
+  YAML::Node config;
+  gsl_rng *rng(0);
+
+  MDWorld *world(0);
+  MDStepper *stepper(0);
+  IntegrationParams iparams;
+	size_t iter;
 
 //-----------------------------------------------
 //** INITIALIZATION
@@ -55,63 +81,185 @@ int main(int argc, char *argv[]){
 		if (argc == 2){
 			convert.clear();
 			convert.str(argv[1]);
-			convert >> pathtoconf;
+			convert >> pathtoinitconf;
 		}
+    else {
+      pathtoinitconf = "";
+    }
 
-	cout << "Enter parameters values in the form: <key> <value> for the following keys: (iter,dt,T,N,b,lp,dump)" << endl;
-	load_map<double>(cin,params);
-	cout << "You entered the following parameters:" << endl;
-	print_map<double>(cout,params);
+  /* load parameters */
+  config = YAML::Load(cin);  // load yaml from standart input
+  cout << config << endl;
 
-  check_params_keys(params, required_parameters);
+  /* initialize random number generator */
+  rng = gsl_rng_alloc(RDT);
+  yc::init_rng(config, rng);
 
+  /* initialize MDWorld */
+  world = new MDWorld();
+  yc::init_world(config, rng, world);
+  world->print_infos(cout);
+
+  /* initialize MDStepper */
+  yc::init_stepper(config, rng, world, stepper);
+  stepper->print_infos(cout);
+
+  /* load force fields */
+  yc::init_forcefields(config, world);
+
+  /* load constraints */
+  yc::init_constraints(config, world);
+
+  /* init integration parameters */
+  yc::init_integration_params(config, iparams);
+  iparams.print_infos(cout);
+
+  /* I/O */
+  // root directory for trajectories
+  pathname = "trajectory";
+  fs::path traj_dir(pathname.c_str());
+  if (fs::create_directory(traj_dir))
+  {
+    cout << "Directory created: " << traj_dir.string() << endl;
+  }
+  // directory for dat format
+  pathname = "dat";
+  fs::path traj_dat = traj_dir;
+  traj_dat /=  fs::path(pathname.c_str());
+  cout << traj_dat.string() << endl;
+  if (fs::create_directory(traj_dat))
+  {
+    cout << "Directory created: " << traj_dat.string() << endl;
+  }
+
+  // remove all existing configurations
+  for (fs::directory_iterator end_dir_it, it(traj_dat); it!=end_dir_it; ++it) {
+    fs::remove_all(it->path());
+  }
+
+  // directory for xyz format
+  pathname = "xyz";
+  fs::path traj_xyz = traj_dir;
+  traj_xyz /=  fs::path(pathname.c_str());
+  cout << traj_xyz.string() << endl;
+  if (fs::create_directory(traj_xyz))
+  {
+    cout << "Directory created: " << traj_xyz.string() << endl;
+  }
+  // remove all existing configurations
+  for (fs::directory_iterator end_dir_it, it(traj_xyz); it!=end_dir_it; ++it) {
+    fs::remove_all(it->path());
+  }
+  // trajname
+  trajname = "state";
+
+  // thermo
 	convert.clear();
 	convert.str("");
-	convert << "pol.xyz";
+	convert << "thermo.dat";
   pathtooutput = convert.str();
-	fpol.open(pathtooutput.c_str());
-	fpol << left;
+	fthermo.open(pathtooutput.c_str());
+	fthermo << left;
   cout << "output file: " << pathtooutput << endl;
 
-	iter=params["iter"];      // number of iterations
-	idump=params["idump"];    // dump interval
-	dt=params["dt"];          // integration time step
-	T=params["T"];            // temperature
-	b=params["b"];            // bond length
-	lp=params["lp"];          // persistence length
-	N=params["N"];            // number of monomers
+  /* initialize simulation */
+  if (pathtoinitconf != "") {
+    fs::path path(pathtoinitconf.c_str());
+    string ext;
 
-//-----------------------------------------------
-//	INTEGRATION
-//-----------------------------------------------
-//	Polymer pol(N,Ke,lp);
-//	if (pathtoconf != ""){
-//		cout << "pathtoconf:" << pathtoconf << endl;
-//		fin.open(pathtoconf.c_str());
-//		pol.init(fin);
-//		pol.recenter();
-//		fin.close();
-//	}
-//	for (int i=0; i<=iter; i++){
-//		pol.step(T,dt);
-//		pol.update();
-//
-//		if (i%dump == 0){
-//			cout << setw(5) << "i=" << setw(10) << i;
-//			cout << setw(5) << "E=" << setw(20) << pol.energy() << endl;
-//
-//			fpol << setw(10) << pol.N << endl;
-//			fpol << "Atoms. Timestep:" << setw(10) << i << endl;
-//			pol.print_current(fpol);
-//		}
-//	}
-//	//load_map<double>(fin,cmap_raw);
+    ext = path.extension().string();
+    if (ext == ".dat") {
+      cout << "Init from DAT format..." << endl;
+      cout << "Initializing positions from input" << endl;
+      cout << "Initializing velocities from input" << endl;
+      world->load_dat(pathtoinitconf);
+    }
+    else if (ext == ".xyz") {
+      cout << "Init from XYZ format..." << endl;
+      cout << "Initializing positions from input" << endl;
+      world->load_xyz(pathtoinitconf);
+    }
+    else {
+      cout << path.string() << endl;
+      throw invalid_argument("Extension not recognized.");
+    }
+  }
+  world->set_constraints();
+  world->update_energy_kinetics();
+  stepper->call_forces(); // compute forces at current position
 
+  /* integration */
+  for (iter = 0; iter < iparams.itermax; ++iter){
+    /* dump */
+    if (iter % iparams.idump_thermo == 0){
+      // thermo dump
+      fthermo << setw(10) << fixed << setprecision(0) << noshowpos << iter;
+      world->dump_thermo(fthermo);
+      fthermo << endl;
+    }
+    if (iter % iparams.idump_pos == 0){
+      // generate file name
+      convert.clear();
+      convert.str("");
+      convert << trajname << setw(iparams.iterwidth) << setfill('0') << setprecision(0) << fixed << dec << iter;
+      // conf dump -- standard
+      state_path = traj_dat;
+      state_path /=  convert.str();
+      state_path += ".dat";
+      world->dump_dat(state_path.string());
+      // conf dump -- xyz format
+      state_path = traj_xyz;
+      state_path /=  convert.str();
+      state_path += ".xyz";
+      world->dump_xyz(state_path.string(), iter);
+    }
+
+    /* step */
+    stepper->step();
+
+    /* update energy */
+    // potential energy already updated when calling the forces in the stepper
+    world->update_energy_kinetics();
+
+  }
+
+  /* final dump */
+  // thermo dump
+  fthermo << setw(10) << fixed << setprecision(0) << noshowpos << iter;
+  world->dump_thermo(fthermo);
+  fthermo << endl;
+  // configuration dump
+  convert.clear();
+  convert.str("");
+  convert << trajname << setw(iparams.iterwidth) << setfill('0') << setprecision(0) << fixed << dec << iter;
+  // conf dump -- standard
+  state_path = traj_dat;
+  state_path /=  convert.str();
+  state_path += ".dat";
+  world->dump_dat(state_path.string());
+  // conf dump -- xyz format
+  state_path = traj_xyz;
+  state_path /=  convert.str();
+  state_path += ".xyz";
+  world->dump_xyz(state_path.string(), iter);
+
+  // thermo
+  ofstream fthermo_final("thermo_final.dat");
+  fthermo_final << left;
+  world->dump_thermo(fthermo_final);
+  fthermo_final << endl;
+  // positions
+  ofstream fpos_final("positions_final.dat");
+  fpos_final << left << dec << fixed;
+  world->dump_pos(fpos_final);
 
 //-----------------------------------------------
 //	EXIT
 //-----------------------------------------------
 	cout << "normal exit" << endl;
+  delete stepper;
+  delete world;
+  gsl_rng_free(rng);
 	return 0;
 }
 
@@ -126,3 +274,4 @@ void check_params_keys(map<string,double> myparams, vector<string> list)
   }
   return;
 }
+
