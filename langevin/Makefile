@@ -18,7 +18,7 @@ endif
 LDLIBS += -lboost_filesystem -lboost_system
 LDLIBS += -lyaml-cpp
 
-SRC = main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper.cpp constraint.cpp integration.cpp
+SRC = main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper.cpp constraint.cpp integration.cpp yaml_config.cpp
 OBJS = $(SRC:.cpp=.o)
 PROG = ../bin/simu_langevin
 
@@ -50,6 +50,9 @@ linalg.o: linalg.h linalg.cpp
 
 utils.o: utils.h utils.tpp utils.cpp
 	$(CC) $(CFLAGS) -c utils.cpp
+
+yaml_config.o: yaml_config.h yaml_config.cpp
+	$(CC) $(CFLAGS) -c yaml_config.cpp
 
 clean:
 	rm -f *~ *.o $(PROG) core a.out

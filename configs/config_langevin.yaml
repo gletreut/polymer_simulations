@@ -1,0 +1,68 @@
+MDWorld:
+        npart: 100
+        gamma: 1.0
+        temp: 1.0
+        mass: 1.0
+        box: [7, 7, 7]
+        init_pos:
+                mode: lattice
+                dist: 1.123
+forcefields:
+#        ConfinmentBox:
+#                sigma: 1.0
+#                epsilon: 1.0
+#        ConfinmentSphere:
+#                radius: 100
+#                sigma: 1.0
+#                epsilon: 1.0
+#        PolymerGaussian:
+#                offset: 0
+#                N: 100
+#                b: 1.0
+        PolymerHarmonic:
+                offset: 0
+                N: 100
+                ke: 200
+                r0: 1.
+#        PolymerFENE:
+#                offset: 0
+#                N: 100
+#                ke: 30
+#                rc: 1.5
+#                sigma: 1.0
+#                epsilon: 1.0
+        PolymerKratkyPorod:
+                offset: 0
+                N: 100
+                lp: 3.0
+#        GEMField:
+#                offset: 0
+#                N: 100
+#                b: 1.0
+#                kmat_fpath: kmat.in
+constraints:
+        PointConstraint:
+                index: 0
+                point: [0,0,0]
+        AxisConstraint:
+                index: 1
+                point: [0,0,0]
+                axis: [1.,0,0]
+        PlaneConstraint:
+                index: 2
+                point: [0,0,0]
+                direction: [0,0,1.]
+stepper:
+        dt: 0.01
+        #method: MD_VVerlet
+        method: Lang_VVerlet
+integration:
+        itermax: 1.0e6
+        thermo:
+                idump: 1.0e3
+        positions:
+                idump: 1.0e3
+                xyz: true
+                dat: true
+
+seed: 123

@@ -37,6 +37,7 @@
 #include "model.h"
 #include "stepper.h"
 #include "integration.h"
+#include "yaml_config.h"
 
 using namespace std;
 using namespace utils;
