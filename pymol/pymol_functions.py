@@ -219,6 +219,39 @@ def make_movie(npts=100,rdir='.',nmin=None,nmax=None, imgpx_w=800, imgpx_h=600, 
 
 cmd.extend("make_movie",make_movie)
 
+def make_state_movie(state=None,fileout='state.gif',nframes=150,imgpx_w=800, imgpx_h=600):
+    """make a movie showing a view of the input state"""
+    ## PARAMETERS
+    if (state == None): state=cmd.count_states()
+    rdir = os.path.dirname(os.path.realpath(fileout))
+    dirstates_path=os.path.join(rdir,"output_mov_states")
+    pngname=os.path.join(dirstates_path,"state")
+    #filename=os.path.splitext(fileout)[0]
+
+    if ( not os.path.exists(dirstates_path) ):
+        os.makedirs(dirstates_path)
+
+    ## BUILD MOVIE
+    cmd.set("state",state)
+    cmd.zoom("all", state=state, complete=1) # reajust view to fit the current state
+    cmd.mset("%d x%d" %(state, nframes))
+    util.mroll(1,nframes,1)
+    cmd.viewport(imgpx_w,imgpx_h)
+    cmd.set("ray_trace_frames",1)
+    cmd.set("cache_frames",0)
+    cmd.mclear()
+    cmd.mpng(pngname)
+
+    # MAKE THE GIF AND DELETE PNGs
+    #command="convert -delay %.1f -loop 0 %s*.png %s.gif" %(30./100,pngname,filename)
+    command="convert -delay %.1f -loop 0 %s*.png %s" %(30./100,pngname,fileout)
+    sb.call(command,shell=True)
+    #command="rm -f %s*.png" %filename
+    command="rm -rf %s" %dirstates_path
+    sb.call(command,shell=True)
+
+cmd.extend("make_state_movie",make_state_movie)
+
 def set_view_states(view):
     nstates=cmd.count_states()
 
