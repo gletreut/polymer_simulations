@@ -82,12 +82,14 @@ def load_xyz_states_list(files, monomer_color='tv_blue', bg_color='white', monom
     for i in range(nfiles):
         n = names[i]
         f = files[i]
+        #cmd.load(f, "lala")
         cmd.load(f)
         cmd.color(monomer_color,n)
 
     # join states
-    cmd.join_states('trajectory', " ".join(names), mode=0)
-    cmd.delete(" ".join(names))
+    if (nfiles > 1):
+        cmd.join_states('trajectory', " ".join(names), mode=0)
+        cmd.delete(" ".join(names))
 
     # display parameters
     cmd.hide("everything","all")
@@ -117,6 +119,70 @@ def load_xyz_states(trajdir, prefix="state"):
     return load_xyz_states_list(lst)
 
 cmd.extend("load_xyz_states",load_xyz_states)
+
+def load_single_xyz(file_xyz, file_surface_radius=None, monomer_color='tv_blue', bg_color='white', surface_color='gray', monomer_size=1.0, sphere_transparency=0.0, surface_transparency=0.5):
+    """
+    This function loads .xyz states in the input files and build a trajectory.
+    """
+    # initialization of pymol
+    cmd.reinitialize()
+    cmd.set("max_threads",1)
+
+    # list names
+    name = os.path.splitext(os.path.basename(file_xyz))[0]
+
+    # load state
+    cmd.load(file_xyz)
+    cmd.color(monomer_color,name)
+
+    # radius
+    cmd.alter("{:s}".format(name),"vdw={:.1f}".format(monomer_size / 2.0))
+
+    # case with fluctuation information
+    if not file_surface_radius is None: # try to load fluctuation surface
+        # load the radii
+        with open(file_surface_radius,'r') as fin:
+            radii = np.loadtxt(fin)
+
+        if radii.shape[1] != 2:
+            print(radii)
+            print(radii.shape)
+            raise ValueError("Wrong shape for the radii loaded!")
+        natoms = len(radii)
+
+        # re-load the main positions in a new object
+        name_surface = "fluctuations"
+        cmd.load(file_xyz, name_surface)
+        cmd.color(surface_color,name_surface)
+
+        # alter the radii
+        for i in range(natoms):
+            resi = int(radii[i,0])+1
+            r = radii[i,1]
+            print("resi {:d} with r = {:1f}".format(resi,r))
+            cmd.alter("{:s} and resi {:d}".format(name_surface, resi),"vdw={:.1f}".format(r))
+
+
+    # display parameters
+    cmd.hide("everything","all")
+    cmd.show("spheres",name)
+    cmd.show("surface",name_surface)
+    #cmd.show("spheres",name_surface)
+    cmd.set("solvent_radius", 1.4*(2*monomer_size))       # if too small then surface is incomplete
+    cmd.bg_color(bg_color)
+    cmd.set("orthoscopic",1)
+    cmd.set("ray_trace_mode",0)
+    cmd.set("ray_trace_fog",0)
+    cmd.set("depth_cue",0)
+    cmd.set("sphere_transparency",sphere_transparency)  # for spheres
+    cmd.set("transparency",surface_transparency)        # for surface
+    cmd.set("surface_quality", 1)                       # for surface quality
+    cmd.zoom("all",complete=1)
+
+
+    return
+
+cmd.extend("load_single_xyz",load_xyz_states_list)
 
 def polymer_colloids_standard(path=["pol.xyz"], polymer_color='tv_blue', monomer_size=1.0, sphere_transparency=0.0, showspheres=True):
     ## LOADING
@@ -233,7 +299,7 @@ def make_state_movie(state=None,fileout='state.gif',nframes=150,imgpx_w=800, img
 
     ## BUILD MOVIE
     cmd.set("state",state)
-    cmd.zoom("all", state=state, complete=1) # reajust view to fit the current state
+    #cmd.zoom("all", state=state, complete=1) # reajust view to fit the current state
     cmd.mset("%d x%d" %(state, nframes))
     util.mroll(1,nframes,1)
     cmd.viewport(imgpx_w,imgpx_h)
