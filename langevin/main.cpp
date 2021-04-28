@@ -89,6 +89,7 @@ int main(int argc, char *argv[]){
     }
 
   /* load parameters */
+  cout << "Enter parameters:" << endl;
   config = YAML::Load(cin);  // load yaml from standart input
   cout << config << endl;
 

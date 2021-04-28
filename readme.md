@@ -9,6 +9,11 @@ Compilation of both implementations is achieved through:
 make -C langevin/
 ```
 
+There is a problem with the compilation, use instead:
+```
+g++ -std=c++11 -O3 -Wall -DGSL main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper cpp constraint.cpp integration.cpp yaml_config.cpp -o ../bin/simu_langevin -lm -lgsl -lgslcblas -lboost_filesystem -lboost_system -lyaml-cpp
+```
+
 ## Execution
 The program is then executed as follows:
 ```
