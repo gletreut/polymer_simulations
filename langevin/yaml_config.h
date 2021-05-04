@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <string>
 #include <map>
 
 // external library

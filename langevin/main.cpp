@@ -16,6 +16,7 @@
 #include <sstream>
 #include <string>
 #include <limits>
+#include <vector>
 #include <map>
 
 // external library
