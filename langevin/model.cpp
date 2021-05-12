@@ -37,8 +37,14 @@ using namespace std;
 //****************************************************************************
 //* MDWorld
 //****************************************************************************
-MDWorld::MDWorld(size_t npart, double lx, double ly, double lz, double sig_hard_core, double gamma, double temp, double mass) :
-  m_npart(npart), m_lx(lx), m_ly(ly), m_lz(lz), m_sig_hard_core(sig_hard_core), m_gamma(gamma), m_temp(temp), m_mass(mass) {
+MDWorld::MDWorld(size_t npart, double lx, double ly, double lz,
+                 double sig_hard_core, double gamma,
+                 double temp, double mass, size_t dim,
+                 double neighbor_cutoff, size_t neighbor_max) :
+  m_npart(npart), m_lx(lx), m_ly(ly), m_lz(lz),
+  m_sig_hard_core(sig_hard_core), m_gamma(gamma),
+  m_temp(temp), m_mass(mass), m_dim(dim),
+  m_neighbor_cutoff(neighbor_cutoff), m_neighbor_max(neighbor_max) {
   /* check */
   if (m_npart == 0){
     throw invalid_argument("Number of particles must be larger than zero!");
@@ -66,6 +72,10 @@ void MDWorld::init() {
   gsl_matrix_set_all(m_forces, 0.0);
   m_forces_tp = gsl_matrix_calloc(m_npart, 3);
   gsl_matrix_set_all(m_forces_tp, 0.0);
+  m_neighbor = gsl_matrix_uint_calloc(m_npart, m_neighbor_max);
+  gsl_matrix_uint_set_all(m_neighbor, 0);
+  m_neighbor_num = gsl_vector_uint_calloc(m_npart);
+  gsl_vector_uint_set_all(m_neighbor_num, 0);
 
   // vectors
   m_ffields.clear();
@@ -89,6 +99,12 @@ void MDWorld::clear() {
   }
   if (m_forces_tp != nullptr){
     gsl_matrix_free(m_forces_tp);
+  }
+  if (m_neighbor != nullptr){
+    gsl_matrix_uint_free(m_neighbor);
+  }
+  if (m_neighbor_num != nullptr){
+    gsl_vector_uint_free(m_neighbor_num);
   }
 
   /* delete forcefields */
@@ -126,18 +142,24 @@ void MDWorld::init_positions_lattice(double delta){
     x = -0.5*m_lx + ix*delta;
     for (size_t iy = 1; iy < ny; ++iy){
       y = -0.5*m_ly + iy*delta;
-      for (size_t iz = 1; iz < nz; ++iz){
-        z = -0.5*m_lz + iz*delta;
-        gsl_matrix_set(m_x, counter, 0, x);
-        gsl_matrix_set(m_x, counter, 1, y);
-        gsl_matrix_set(m_x, counter, 2, z);
+      gsl_matrix_set(m_x, counter, 0, x);
+      gsl_matrix_set(m_x, counter, 1, y);
+      if (m_dim == 3) {
+        for (size_t iz = 1; iz < nz; ++iz){
+          z = -0.5*m_lz + iz*delta;
+          gsl_matrix_set(m_x, counter, 2, z);
+          counter += 1;
+
+          if (counter == m_npart)
+            break;
+        }
+      }
+      else {
         counter += 1;
 
         if (counter == m_npart)
           break;
       }
-      if (counter == m_npart)
-        break;
     }
     if (counter == m_npart)
       break;
@@ -147,6 +169,7 @@ void MDWorld::init_positions_lattice(double delta){
     throw runtime_error("Box is too small to position all particles on a lattice!");
   }
 
+  cout << "finished lattice init" << endl;
   return;
 }
 
@@ -169,42 +192,33 @@ void MDWorld::init_velocities(gsl_rng *rng){
 
   // random velocities
   for (size_t n=0; n<m_npart; ++n){
-    vx = gsl_rng_uniform(rng);
-    vy = gsl_rng_uniform(rng);
-    vz = gsl_rng_uniform(rng);
-    gsl_matrix_set(m_v, n, 0, vx);
-    gsl_matrix_set(m_v, n, 1, vy);
-    gsl_matrix_set(m_v, n, 2, vz);
+    gsl_vector_view v = gsl_matrix_row(m_v, n);
+    for (size_t i=0; i<m_dim; i++){
+      gsl_vector_set(&v.vector, i, gsl_rng_uniform(rng));
+    }
 
     // update average velocity
-    vxm += vx;
-    vym += vy;
-    vzm += vz;
+    linalg_daxpy(1., &v.vector, vm);
 
     // update average square velocity
-    vsqm += vx*vx + vy*vy + vz*vz;
+    vsqm += linalg_ddot(&v.vector, &v.vector);
   }
 
   // compute mean velocity
-  vxm /= m_npart;
-  vym /= m_npart;
-  vzm /= m_npart;
-  gsl_vector_set(vm, 0, vxm);
-  gsl_vector_set(vm, 1, vym);
-  gsl_vector_set(vm, 2, vzm);
+  linalg_dscal(1./m_npart, vm);
 
   // compute variance
   vsqm /= m_npart;
-  vvar = vsqm - (vxm*vxm + vym*vym + vzm*vzm);  // var = <v^2> - <v>^2
+  vvar = vsqm - linalg_ddot(vm, vm);  // var = <v^2> - <v>^2
 
   // shift and rescale velocities
   if (m_npart == 1){
-    fs = sqrt(3.*m_temp / vsqm);
+    fs = sqrt(m_dim * m_temp / vsqm);
       gsl_vector_view v = gsl_matrix_row(m_v, 0);
       linalg_dscal(fs, &v.vector);
   }
   else {
-    fs = sqrt(3.*m_temp / vvar);
+    fs = sqrt(m_dim * m_temp / vvar);
     for (size_t n=0; n<m_npart; ++n){
       gsl_vector_view v = gsl_matrix_row(m_v, n);
       // shift
@@ -290,6 +304,12 @@ void MDWorld::update_energy_kinetics(){
   m_energy_kin = 0.5*m_mass*linalg_ddot(m_v, m_v);
 
   return;
+}
+
+void MDWorld::build_neighbors(){
+  /*
+   * Build the neighbor list
+   */
 }
 
 void

@@ -1,6 +1,6 @@
 CC = g++
 LINLIBS = GSL
-CFLAGS := -std=c++11 -O3 -Wall
+CFLAGS := -std=c++11 -O3 -Wall -g
 LDLIBS := -lm
 LDFLAGS :=
 ifeq ($(LINLIBS), LAPACK)

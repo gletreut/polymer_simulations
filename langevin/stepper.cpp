@@ -148,7 +148,7 @@ void LangStepper_VVerlet::add_brownian_forces(){
   // iterate over atomes
   for (size_t i=0; i<m_v->size1; ++i){
     // compute random force
-    for (size_t a=0; a<3; ++a){
+    for (size_t a=0; a<m_world->m_dim; ++a){
       r = m_s12*(gsl_rng_uniform(m_rng) - 0.5); // uniform with mean zero and variance 1.
       gsl_vector_set(rforce,a,r);
     }

@@ -130,29 +130,34 @@ int main(int argc, char *argv[]){
   fs::path traj_dat = traj_dir;
   traj_dat /=  fs::path(pathname.c_str());
   cout << traj_dat.string() << endl;
-  if (fs::create_directory(traj_dat))
-  {
-    cout << "Directory created: " << traj_dat.string() << endl;
-  }
+  if (iparams.pos_dat) {
+    if (fs::create_directory(traj_dat))
+    {
+      cout << "Directory created: " << traj_dat.string() << endl;
+    }
 
-  // remove all existing configurations
-  for (fs::directory_iterator end_dir_it, it(traj_dat); it!=end_dir_it; ++it) {
-    fs::remove_all(it->path());
+    // remove all existing configurations
+    for (fs::directory_iterator end_dir_it, it(traj_dat); it!=end_dir_it; ++it) {
+      fs::remove_all(it->path());
+    }
   }
 
   // directory for xyz format
   pathname = "xyz";
   fs::path traj_xyz = traj_dir;
   traj_xyz /=  fs::path(pathname.c_str());
-  cout << traj_xyz.string() << endl;
-  if (fs::create_directory(traj_xyz))
-  {
-    cout << "Directory created: " << traj_xyz.string() << endl;
+  if (iparams.pos_xyz) {
+    cout << traj_xyz.string() << endl;
+    if (fs::create_directory(traj_xyz))
+    {
+      cout << "Directory created: " << traj_xyz.string() << endl;
+    }
+    // remove all existing configurations
+    for (fs::directory_iterator end_dir_it, it(traj_xyz); it!=end_dir_it; ++it) {
+      fs::remove_all(it->path());
+    }
   }
-  // remove all existing configurations
-  for (fs::directory_iterator end_dir_it, it(traj_xyz); it!=end_dir_it; ++it) {
-    fs::remove_all(it->path());
-  }
+
   // trajname
   trajname = "state";
 
@@ -187,9 +192,14 @@ int main(int argc, char *argv[]){
       throw invalid_argument("Extension not recognized.");
     }
   }
+
+  cout << "Hello 1" << endl;
   world->set_constraints();
+  cout << "Hello 2" << endl;
   world->update_energy_kinetics();
+  cout << "Hello 3" << endl;
   stepper->call_forces(); // compute forces at current position
+  cout << "Hello 4" << endl;
 
   /* integration */
   for (iter = 0; iter < iparams.itermax; ++iter){
@@ -206,18 +216,23 @@ int main(int argc, char *argv[]){
       convert.str("");
       convert << trajname << setw(iparams.iterwidth) << setfill('0') << setprecision(0) << fixed << dec << iter;
       // conf dump -- standard
-      state_path = traj_dat;
-      state_path /=  convert.str();
-      state_path += ".dat";
-      world->dump_dat(state_path.string());
+      if (iparams.pos_dat) {
+        state_path = traj_dat;
+        state_path /=  convert.str();
+        state_path += ".dat";
+        world->dump_dat(state_path.string());
+      }
       // conf dump -- xyz format
-      state_path = traj_xyz;
-      state_path /=  convert.str();
-      state_path += ".xyz";
-      world->dump_xyz(state_path.string(), iter);
+      if (iparams.pos_xyz) {
+        state_path = traj_xyz;
+        state_path /=  convert.str();
+        state_path += ".xyz";
+        world->dump_xyz(state_path.string(), iter);
+      }
     }
 
     /* step */
+    cout << "iter = " << iter << endl;
     stepper->step();
 
     /* update energy */

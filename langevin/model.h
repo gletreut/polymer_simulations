@@ -37,13 +37,18 @@ class MDWorld {
 	public:
     /* attributes */
     size_t m_npart, m_npartmax;
+    size_t m_dim;                             // dimension for the dynamics.
     double m_lx, m_ly, m_lz;                  // dimensions of the box
     double m_gamma;
     double m_temp;
     double m_mass;
     double m_sig_hard_core;
     double m_energy_pot, m_energy_kin;
-    gsl_vector_uint *m_mobile;                // vector storing the status of one particle (mobile:1 or fixed:0)
+    double m_neighbor_cutoff;                    // cutoff for building nearest neighbor list.
+    size_t m_neighbor_max;
+    // gsl_vector_uint *m_mobile;                // vector storing the status of one particle (mobile:1 or fixed:0)
+    gsl_matrix_uint *m_neighbor;              // neighbor list
+    gsl_vector_uint *m_neighbor_num;          // number of neighbors in the list
     gsl_matrix *m_x;                          // positions
     gsl_matrix *m_v;                          // velocities
     gsl_matrix *m_forces, *m_forces_tp;       // forces
@@ -51,7 +56,10 @@ class MDWorld {
     std::vector<Constraint*> m_constraints;   // list of active constraints
 
     /* constructor / destructor */
-    MDWorld(size_t npart=1, double lx=1., double ly=1., double lz=1., double sig_hard_core=1., double gamma=1.0, double temp=1.0, double mass=1.0);
+    MDWorld(size_t npart=1, double lx=1., double ly=1., double lz=1.,
+            double sig_hard_core=1., double gamma=1.0,
+            double temp=1.0, double mass=1.0, size_t dim=3,
+            double neighbor_cutoff=2., size_t neighbor_max=10);
     virtual ~MDWorld();
 
     /* methods */
@@ -71,6 +79,7 @@ class MDWorld {
     void update_energy_kinetics();
     void constrain_x();
     void constrain_v();
+    void build_neighbors();
 
     // dump methods
     void dump_pos(std::ostream &mystream, bool index=true, bool positions=true, bool velocities=false, bool forces=false);

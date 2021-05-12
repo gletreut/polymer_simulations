@@ -50,6 +50,13 @@ void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
   }
   lineup = config[rootkey];
 
+  // Set the dimension
+  YAML::Node dim = lineup["dim"];
+  if (! dim ) {
+    throw invalid_argument("Missing key: dim");
+  }
+  world->m_dim = dim.as<size_t>();
+
   // initialize new world based on the number of particles
   YAML::Node npart = lineup["npart"];
   if (! npart ) {
