@@ -90,6 +90,17 @@ void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
     world->m_mass = lineup["mass"].as<double>();
   }
 
+  // neighbor list
+  if (lineup["neighbor_cutoff"]){
+    world->m_neighbor_cutoff = lineup["neighbor_cutoff"].as<double>();
+  }
+
+  if (lineup["neighbor_max"]){
+    world->clear();
+    world->m_neighbor_max = lineup["neighbor_max"].as<size_t>();
+    world->init();
+  }
+
   // positions initialization
   YAML::Node init_pos = lineup["init_pos"];
   if (! init_pos){
@@ -453,6 +464,12 @@ void yaml_config::init_integration_params(YAML::Node config, IntegrationParams &
     throw invalid_argument("Missing key: <thermo><idump>");
   }
   iparams.idump_thermo = size_t(idump_thermo.as<double>());
+
+  // neighbor list
+  YAML::Node ineighbor_build = lineup["neighbor_build"];
+  if (ineighbor_build ) {
+    iparams.ineighbor_build = ineighbor_build.as<size_t>();
+  }
 
   // idump_pos
   YAML::Node idump_pos = lineup["positions"]["idump"];

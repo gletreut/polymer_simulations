@@ -86,6 +86,7 @@ class MDWorld {
     void dump_thermo(std::ostream &mystream);
     void dump_dat(std::string fileout);
     void dump_xyz(std::string fileout, size_t iter);
+    void dump_neighbor(std::ostream &mystream);
 
     // loading methods
     void load_dat(std::string filein);

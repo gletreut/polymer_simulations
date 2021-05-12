@@ -130,23 +130,23 @@ void MDWorld::init_positions_lattice(double delta){
   size_t counter;
   size_t nx, ny, nz;
   //double delta;
-  double x,y,z;
+  double x,y,z,u;
 
-  //delta = m_sig_hard_core*pow(2.,1./6);
-  nx = m_lx/delta;
-  ny = m_ly/delta;
-  nz = m_lz/delta;
+  u = m_sig_hard_core*pow(2.,1./6);
+  nx = (m_lx-2*u)/delta;
+  ny = (m_ly-2*u)/delta;
+  nz = (m_lz-2*u)/delta;
 
   counter = 0;
   for (size_t ix = 1; ix < nx; ++ix){
-    x = -0.5*m_lx + ix*delta;
+    x = -0.5*m_lx + u + ix*delta;
     for (size_t iy = 1; iy < ny; ++iy){
-      y = -0.5*m_ly + iy*delta;
+      y = -0.5*m_ly + u + iy*delta;
       gsl_matrix_set(m_x, counter, 0, x);
       gsl_matrix_set(m_x, counter, 1, y);
       if (m_dim == 3) {
         for (size_t iz = 1; iz < nz; ++iz){
-          z = -0.5*m_lz + iz*delta;
+          z = -0.5*m_lz + u + iz*delta;
           gsl_matrix_set(m_x, counter, 2, z);
           counter += 1;
 
@@ -310,6 +310,41 @@ void MDWorld::build_neighbors(){
   /*
    * Build the neighbor list
    */
+  gsl_vector *xtp(0);
+
+  xtp = gsl_vector_calloc(3);
+
+  for (size_t n=0; n<m_npart; ++n){
+    gsl_vector_view xn = gsl_matrix_row(m_x, n);
+    size_t nneigh = 0;
+    for (size_t m=0; m<m_npart; ++m){
+      if (m == n) continue;
+      gsl_vector_view xm = gsl_matrix_row(m_x, m);
+      gsl_vector_memcpy(xtp, &xm.vector);
+      linalg_daxpy(-1, &xn.vector, xtp);
+      double r = linalg_dnrm2(xtp);
+      if (! (r > m_neighbor_cutoff) ){
+        // cout << setw(10) << n;
+        // cout << setw(10) << nneigh;
+        // cout << setw(10) << m;
+        // cout << setw(10) << m_neighbor_max;
+        // cout << setw(10) << m_neighbor->size1;
+        // cout << setw(10) << m_neighbor->size2;
+        // cout << endl;
+        gsl_matrix_uint_set(m_neighbor, n, nneigh, m);
+        nneigh += 1;
+
+        if (nneigh == m_neighbor_max){
+          cout << "Maximum number of neighbors (" << m_neighbor_max << ") reached for particle " << n << endl;
+          throw length_error("Maximum number of neighbors reached!");
+        }
+      }
+    }
+    gsl_vector_uint_set(m_neighbor_num, n, nneigh);
+  }
+
+  gsl_vector_free(xtp);
+  return;
 }
 
 void
@@ -337,6 +372,9 @@ MDWorld::print_infos(ostream &mystream) {
   mystream << setw(20) << "temp" << setw(20) << setprecision(6) << showpos << m_temp << endl;
   mystream << setw(20) << "mass" << setw(20) << setprecision(6) << showpos << m_mass << endl;
   mystream << setw(20) << "box" << setw(20) << setprecision(6) << showpos << m_lx << setw(20) << m_ly << setw(20) << m_lz << endl;
+  mystream << setw(20) << "neighbor_max" << setw(20) << setprecision(0) << noshowpos << m_neighbor_max << endl;
+  mystream << setw(20) << "neighbor_max" << setw(20) << setprecision(0) << noshowpos << m_neighbor->size2 << endl;
+  mystream << setw(20) << "neighbor_cutoff" << setw(20) << setprecision(6) << noshowpos << m_neighbor_cutoff << endl;
   return;
 }
 
@@ -513,5 +551,26 @@ MDWorld::load_xyz(std::string filein) {
   }
 
   fin.close();
+  return;
+}
+
+void
+MDWorld::dump_neighbor(ostream &mystream){
+  /*
+   * Dump neighbor list
+   */
+
+	if (m_npart == 0)
+		throw invalid_argument("MDWorld is empty!");
+
+  mystream << left << dec << fixed;
+
+	for (size_t i=0; i<m_npart; i++){
+    mystream << setw(10) << setprecision(0) << noshowpos << i;
+    for (size_t j=0; j<gsl_vector_uint_get(m_neighbor_num, i); j++){
+      mystream << setw(10) << setprecision(0) << noshowpos << gsl_matrix_uint_get(m_neighbor,i,j);
+    }
+		mystream << endl;
+	}
   return;
 }

@@ -193,13 +193,9 @@ int main(int argc, char *argv[]){
     }
   }
 
-  cout << "Hello 1" << endl;
   world->set_constraints();
-  cout << "Hello 2" << endl;
   world->update_energy_kinetics();
-  cout << "Hello 3" << endl;
   stepper->call_forces(); // compute forces at current position
-  cout << "Hello 4" << endl;
 
   /* integration */
   for (iter = 0; iter < iparams.itermax; ++iter){
@@ -231,8 +227,14 @@ int main(int argc, char *argv[]){
       }
     }
 
+    /* neighbor list */
+    if (iter % iparams.ineighbor_build == 0) {
+      world->build_neighbors();
+      // world->dump_neighbor(cout);
+    }
+
     /* step */
-    cout << "iter = " << iter << endl;
+    // cout << "iter = " << iter << endl;
     stepper->step();
 
     /* update energy */
@@ -269,7 +271,7 @@ int main(int argc, char *argv[]){
   // positions
   ofstream fpos_final("positions_final.dat");
   fpos_final << left << dec << fixed;
-  world->dump_pos(fpos_final);
+  world->dump_pos(fpos_final, true, true, true, false);
 
 //-----------------------------------------------
 //	EXIT

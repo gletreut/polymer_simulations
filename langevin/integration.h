@@ -23,6 +23,7 @@ struct IntegrationParams {
   size_t iterwidth;
   size_t idump_thermo;
   size_t idump_pos;
+  size_t ineighbor_build;
   bool pos_xyz;
   bool pos_dat;
 

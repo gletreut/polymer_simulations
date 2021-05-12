@@ -97,6 +97,18 @@ void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     fnorm = force_LJ_scal(r);  // algebric norm postive
     linalg_daxpy(fnorm, force, &fi.vector);
 
+    // // test
+    // if (fabs(fnorm) > 0) {
+    //   cout << setw(10) << setprecision(0) << i;
+    //   cout << setw(20) << setprecision(6) << fnorm;
+    //   cout << setw(20) << setprecision(6) << rx;
+    //   cout << setw(20) << setprecision(6) << m_xlo;
+    //   cout << setw(20) << setprecision(6) << r;
+    //   cout << endl;
+    //   throw invalid_argument("Test");
+    // }
+    // // test
+
     /* xhi */
     gsl_vector_set_all(force,0.0);
     gsl_vector_set(force,0,1.0);  // ex
