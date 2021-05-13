@@ -213,4 +213,57 @@ class GEMField : public ForceField {
     gsl_vector *m_fa;
 };
 
+class SoftCore : public ForceField {
+  /*
+   * Class defining a force field for soft-core excluded volume.
+   *
+   */
+
+  public:
+    /* attributes */
+    double m_A;        // scale
+    double m_rc;       // cutoff of interaction
+    double m_y;        // hold the ratio pi / rc
+    gsl_matrix_uint *m_neighbor;        // pointer to neighbor list
+    gsl_vector_uint *m_neighbor_num;    // pointer to neighbor number list
+
+    /* constructor and destructor */
+    SoftCore(double A, double sigma, gsl_matrix_uint *neighbor, gsl_vector_uint *neighbor_num);
+    ~SoftCore();
+
+    /* methods */
+    double energy_scal(double r);
+    double force_scal(double r);
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+};
+
+class PairLJ : public ForceField {
+  /*
+   * Class defining a force field for Lennard-Jones pair potential
+   *
+   */
+
+  public:
+    /* attributes */
+    double m_eps;     // scale
+    double m_sigma;       // hard-core distance
+    double m_rc_LJ;          // cutoff
+    gsl_matrix_uint *m_neighbor;        // pointer to neighbor list
+    gsl_vector_uint *m_neighbor_num;    // pointer to neighbor number list
+
+    /* constructor and destructor */
+    PairLJ(double eps, double sigma, double rc_LJ, gsl_matrix_uint *neighbor, gsl_vector_uint *neighbor_num);
+    ~PairLJ();
+
+    /* methods */
+    double energy_LJ_scal(double r);
+    double force_LJ_scal(double r);
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+
+  private:
+    double m_4eps;
+    double m_fpref;
+    double m_u0;
+};
+
 #endif

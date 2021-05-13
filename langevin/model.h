@@ -87,6 +87,7 @@ class MDWorld {
     void dump_dat(std::string fileout);
     void dump_xyz(std::string fileout, size_t iter);
     void dump_neighbor(std::ostream &mystream);
+    void dump_neighbor(std::string fileout);
 
     // loading methods
     void load_dat(std::string filein);

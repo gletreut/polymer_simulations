@@ -26,6 +26,7 @@ struct IntegrationParams {
   size_t ineighbor_build;
   bool pos_xyz;
   bool pos_dat;
+  bool neighbor;
 
   IntegrationParams();
 

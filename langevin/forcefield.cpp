@@ -681,3 +681,189 @@ void GEMField::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 
   return;
 }
+
+//****************************************************************************
+// SoftCore
+//****************************************************************************
+SoftCore::SoftCore(double A, double sigma, gsl_matrix_uint *neighbor, gsl_vector_uint *neighbor_num) :
+  m_A(A),
+  m_neighbor(neighbor),
+  m_neighbor_num(neighbor_num)
+{
+  double pi = atan(1.)*4;
+
+  m_rc = pow(2., 1./6) * sigma;
+  m_y = pi / m_rc;
+}
+
+SoftCore::~SoftCore() {
+}
+
+/* methods */
+double SoftCore::energy_scal(double r){
+  /*
+   * compute the energy of the  interaction when the algebric
+   * distance is r.
+   */
+
+  if (fabs(r) < m_rc) {
+    return m_A*(1. + cos(r*m_y) );
+  }
+  else {
+    return 0.0;
+  }
+}
+
+double SoftCore::force_scal(double r){
+  /*
+   * compute the algebric norm of the force applied when the algebric
+   * distance is r.
+   */
+  if (fabs(r) < m_rc) {
+    return m_A*m_y*sin(r*m_y);
+  }
+  else {
+    return 0.0;
+  }
+}
+
+void SoftCore::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the potential energy and force (minus gradient) of a soft-core potential.
+   * \beta U(r) = A (1 + \cos(\pi r / \xi)),
+   * where r is the separation between 2 particles and \xi is the cutoff.
+   *
+   * The force generated is in the direction of r and has the algebraic norm:
+   * f = A \pi / \xi \sin(\pi r / \xi)
+   */
+
+  size_t N, nneigh;
+  double fnorm, r;
+  gsl_vector *xtp(0);
+
+  // initialize
+  N = x->size1;
+  xtp = gsl_vector_calloc(3);
+
+  for (size_t n=0; n<N; ++n){
+    gsl_vector_view xn = gsl_matrix_row(x, n);
+    gsl_vector_view fn = gsl_matrix_row(forces, n);
+    nneigh = gsl_vector_uint_get(m_neighbor_num, n);
+    for (size_t i=0; i<nneigh; ++i) {
+      size_t m = gsl_matrix_uint_get(m_neighbor, n, i);
+      gsl_vector_view xm = gsl_matrix_row(x, m);
+      gsl_vector_memcpy(xtp, &xn.vector);
+      linalg_daxpy(-1., &xm.vector, xtp);               // xtp = xn-xm
+      r = linalg_dnrm2(xtp);
+
+      // energy
+      *u += energy_scal(r);
+
+      // force
+      fnorm = force_scal(r);
+      linalg_daxpy(fnorm/r, xtp, &fn.vector);
+    }
+  }
+
+  /* exit */
+  gsl_vector_free(xtp);
+  return;
+}
+
+//****************************************************************************
+// PairLJ
+//****************************************************************************
+PairLJ::PairLJ(double eps, double sigma, double rc_LJ, gsl_matrix_uint *neighbor, gsl_vector_uint *neighbor_num) :
+  m_sigma(sigma),
+  m_eps(eps),
+  m_rc_LJ(rc_LJ),
+  m_neighbor(neighbor),
+  m_neighbor_num(neighbor_num)
+
+{
+  m_4eps = 4.0*m_eps;
+  m_fpref = 48.0*m_eps / m_sigma;
+
+  double x = m_sigma/m_rc_LJ;
+  double x6 = x*x*x*x*x*x;
+  double x12 = x6*x6;
+  m_u0 = m_4eps*(x12 - x6);
+}
+
+PairLJ::~PairLJ(){
+}
+
+double PairLJ::energy_LJ_scal(double r){
+  /*
+   * compute the energy of the  LJ interaction when the algebric
+   * distance is r.
+   */
+
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = m_sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_4eps*(x12 - x6) - m_u0;
+  }
+  else {
+    return 0.0;
+  }
+}
+
+double PairLJ::force_LJ_scal(double r){
+  /*
+   * compute the algebric norm of the LJ force applied when the algebric
+   * distance is r.
+   */
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = m_sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_fpref*x*(x12 - 0.5*x6);
+  }
+  else {
+    return 0.0;
+  }
+}
+
+void PairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the potential energy and force (minus gradient) produced by pair Lennard-Jones interactions.
+   */
+
+  size_t N, nneigh;
+  double fnorm, r;
+  gsl_vector *xtp(0);
+
+  // initialize
+  N = x->size1;
+  xtp = gsl_vector_calloc(3);
+
+  for (size_t n=0; n<N; ++n){
+    gsl_vector_view xn = gsl_matrix_row(x, n);
+    gsl_vector_view fn = gsl_matrix_row(forces, n);
+    nneigh = gsl_vector_uint_get(m_neighbor_num, n);
+    for (size_t i=0; i<nneigh; ++i) {
+      size_t m = gsl_matrix_uint_get(m_neighbor, n, i);
+      gsl_vector_view xm = gsl_matrix_row(x, m);
+      gsl_vector_memcpy(xtp, &xn.vector);
+      linalg_daxpy(-1., &xm.vector, xtp);               // xtp = xn-xm
+      r = linalg_dnrm2(xtp);
+
+      // energy
+      *u += 0.5*energy_LJ_scal(r);
+
+      // force
+      fnorm = force_LJ_scal(r);
+      linalg_daxpy(fnorm/r, xtp, &fn.vector);
+    }
+  }
+
+  /* exit */
+  gsl_vector_free(xtp);
+}
+

@@ -131,43 +131,87 @@ void MDWorld::init_positions_lattice(double delta){
   size_t nx, ny, nz;
   //double delta;
   double x,y,z,u;
+  int dirx, diry;
 
   u = m_sig_hard_core*pow(2.,1./6);
   nx = (m_lx-2*u)/delta;
   ny = (m_ly-2*u)/delta;
   nz = (m_lz-2*u)/delta;
 
-  counter = 0;
-  for (size_t ix = 1; ix < nx; ++ix){
-    x = -0.5*m_lx + u + ix*delta;
-    for (size_t iy = 1; iy < ny; ++iy){
-      y = -0.5*m_ly + u + iy*delta;
-      gsl_matrix_set(m_x, counter, 0, x);
-      gsl_matrix_set(m_x, counter, 1, y);
-      if (m_dim == 3) {
-        for (size_t iz = 1; iz < nz; ++iz){
-          z = -0.5*m_lz + u + iz*delta;
-          gsl_matrix_set(m_x, counter, 2, z);
-          counter += 1;
+  dirx = diry = 1;
+  x = -0.5*m_lx + u;
+  y = -0.5*m_ly + u;
+  z = m_dim==3?-0.5*m_lz + u:0.;
+  counter = 0 ;
+  for (;;) {
 
-          if (counter == m_npart)
-            break;
+    // place one particle
+    gsl_matrix_set(m_x, counter, 0, x);
+    gsl_matrix_set(m_x, counter, 1, y);
+    gsl_matrix_set(m_x, counter, 2, z);
+    counter += 1;
+
+    // if all molecules placed exit
+    if (counter == m_npart) break;
+
+    // update coordinates
+    double xnew = x + dirx*delta;
+    if (fabs(xnew) > 0.5*m_lx - u) {
+      dirx *= -1;
+      double ynew = y + diry*delta;
+      if (fabs(ynew) > 0.5*m_ly - u) {
+        diry *= -1;
+        if (m_dim == 3) {
+          double znew = z + delta;
+          if (fabs(znew) > 0.5*m_lz-u) {
+            // break;
+            throw runtime_error("Box is too small to position all particles on a lattice!");
+          }
+          else {
+            z = znew;
+          }
+        }
+        else {
+          // break;
+          throw runtime_error("Box (2d) is too small to position all particles on a lattice!");
         }
       }
       else {
-        counter += 1;
-
-        if (counter == m_npart)
-          break;
+        y = ynew;
       }
     }
-    if (counter == m_npart)
-      break;
+    else {
+      x = xnew;
+    }
   }
-
-  if (counter < m_npart) {
-    throw runtime_error("Box is too small to position all particles on a lattice!");
-  }
+  // for (size_t ix = 1; ix < nx; ++ix){
+  //   for (size_t iy = 1; iy < ny; ++iy){
+  //     gsl_matrix_set(m_x, counter, 0, x);
+  //     gsl_matrix_set(m_x, counter, 1, y);
+  //     if (m_dim == 3) {
+  //       for (size_t iz = 1; iz < nz; ++iz){
+  //         z = -0.5*m_lz + u + iz*delta;
+  //         gsl_matrix_set(m_x, counter, 2, z);
+  //         counter += 1;
+  //
+  //         if (counter == m_npart)
+  //           break;
+  //       }
+  //     }
+  //     else {
+  //       counter += 1;
+  //
+  //       if (counter == m_npart)
+  //         break;
+  //     }
+  //   }
+  //   if (counter == m_npart)
+  //     break;
+  // }
+  //
+  // if (counter < m_npart) {
+  //   throw runtime_error("Box is too small to position all particles on a lattice!");
+  // }
 
   cout << "finished lattice init" << endl;
   return;
@@ -324,17 +368,27 @@ void MDWorld::build_neighbors(){
       linalg_daxpy(-1, &xn.vector, xtp);
       double r = linalg_dnrm2(xtp);
       if (! (r > m_neighbor_cutoff) ){
-        // cout << setw(10) << n;
-        // cout << setw(10) << nneigh;
-        // cout << setw(10) << m;
-        // cout << setw(10) << m_neighbor_max;
-        // cout << setw(10) << m_neighbor->size1;
-        // cout << setw(10) << m_neighbor->size2;
-        // cout << endl;
         gsl_matrix_uint_set(m_neighbor, n, nneigh, m);
         nneigh += 1;
 
         if (nneigh == m_neighbor_max){
+          cout << setw(10) << n;
+          for (size_t i=0; i<m_neighbor_max; ++i){
+            size_t p = gsl_matrix_uint_get(m_neighbor, n, i);
+            gsl_vector_view xp = gsl_matrix_row(m_x, p);
+            gsl_vector_memcpy(xtp, &xp.vector);
+            linalg_daxpy(-1, &xn.vector, xtp);
+            r = linalg_dnrm2(xtp);
+
+            cout << setw(4) << "" << setw(10) << setprecision(0) << p;
+            cout << setw(4) << "" << setw(10) << setprecision(6) << r;
+            cout << endl;
+          }
+          // cout << setw(10) << nneigh;
+          // cout << setw(10) << m_neighbor_max;
+          // cout << setw(10) << m_neighbor->size1;
+          // cout << setw(10) << m_neighbor->size2;
+          // cout << endl;
           cout << "Maximum number of neighbors (" << m_neighbor_max << ") reached for particle " << n << endl;
           throw length_error("Maximum number of neighbors reached!");
         }
@@ -572,5 +626,20 @@ MDWorld::dump_neighbor(ostream &mystream){
     }
 		mystream << endl;
 	}
+  return;
+}
+
+void
+MDWorld::dump_neighbor(string fileout){
+  /*
+   * Dump neighbor list
+   */
+  ofstream fout;
+  fout.open(fileout.c_str());
+
+  dump_neighbor(fout);
+
+  fout.close();
+
   return;
 }

@@ -328,6 +328,27 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new GEMField(offset, N, b, kmat_fpath);
       world->m_ffields.push_back(ffield);
     }
+    else if (key == "SoftCore") {
+      double A, sigma;
+      cout << "Adding force field of type: " << key << endl;
+      cout << "Parameters:" << endl;
+      cout << FNode << endl;
+      A = FNode["A"].as<double>();
+      sigma = FNode["sigma"].as<double>();
+      ffield = new SoftCore(A, sigma, world->m_neighbor, world->m_neighbor_num);
+      world->m_ffields.push_back(ffield);
+    }
+    else if (key == "PairLJ") {
+      double eps, sigma, rc;
+      cout << "Adding force field of type: " << key << endl;
+      cout << "Parameters:" << endl;
+      cout << FNode << endl;
+      eps = FNode["eps"].as<double>();
+      sigma = FNode["sigma"].as<double>();
+      rc = FNode["rc"].as<double>();
+      ffield = new PairLJ(eps, sigma, rc, world->m_neighbor, world->m_neighbor_num);
+      world->m_ffields.push_back(ffield);
+    }
     else {
       cout << "Unrecognized force field type: " << key << endl;
     }
@@ -488,6 +509,10 @@ void yaml_config::init_integration_params(YAML::Node config, IntegrationParams &
     iparams.pos_dat = lineup["positions"]["dat"].as<bool>();
   }
 
+  // neighbor list
+  if (lineup["neighbor"]){
+    iparams.neighbor = lineup["neighbor"].as<bool>();
+  }
   // update computed parameters
   iparams.init();
 

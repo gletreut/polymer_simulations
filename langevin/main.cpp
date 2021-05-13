@@ -158,6 +158,22 @@ int main(int argc, char *argv[]){
     }
   }
 
+  // directory for neighbor lists
+  pathname = "neighbor";
+  fs::path traj_neighbor = traj_dir;
+  traj_neighbor /=  fs::path(pathname.c_str());
+  if (iparams.neighbor) {
+    cout << traj_neighbor.string() << endl;
+    if (fs::create_directory(traj_neighbor))
+    {
+      cout << "Directory created: " << traj_neighbor.string() << endl;
+    }
+    // remove all existing configurations
+    for (fs::directory_iterator end_dir_it, it(traj_neighbor); it!=end_dir_it; ++it) {
+      fs::remove_all(it->path());
+    }
+  }
+
   // trajname
   trajname = "state";
 
@@ -230,8 +246,48 @@ int main(int argc, char *argv[]){
     /* neighbor list */
     if (iter % iparams.ineighbor_build == 0) {
       world->build_neighbors();
-      // world->dump_neighbor(cout);
+      if (iparams.neighbor) {
+        state_path = traj_neighbor;
+        state_path /=  convert.str();
+        state_path += ".dat";
+        world->dump_neighbor(state_path.string());
+      }
     }
+
+    // if (iter == 600){
+    //
+    //   size_t n =1;
+    //   size_t m=193;
+    //   gsl_vector *xtp(0);
+    //   xtp = gsl_vector_calloc(3);
+    //   gsl_vector_view xn = gsl_matrix_row(world->m_x, n);
+    //   gsl_vector_view xm = gsl_matrix_row(world->m_x, m);
+    //   gsl_vector_memcpy(xtp, &xm.vector);
+    //   linalg_daxpy(-1, &xn.vector, xtp);
+    //   double r = linalg_dnrm2(xtp);
+    //   cout << setprecision(0) << setw(10) << n;
+    //   for (size_t i=0; i<3; ++i){
+    //     cout << setw(20) << setprecision(6) << gsl_vector_get(&xn.vector, i);
+    //   }
+    //   cout << endl;
+    //   cout << setprecision(0) << setw(10) << m;
+    //   for (size_t i=0; i<3; ++i){
+    //     cout << setw(20) << setprecision(6) << gsl_vector_get(&xm.vector, i);
+    //   }
+    //   cout << endl;
+    //   cout << "distance = " << r;
+    //
+    //   size_t nneigh = gsl_vector_uint_get(world->m_neighbor_num, n);
+    //   for (size_t i=0; i<nneigh; ++i){
+    //     size_t p = gsl_matrix_uint_get(world->m_neighbor, n, i);
+    //     if (p == m)
+    //       cout << m << " in neighbors of " << n;
+    //   }
+    //   cout << endl;
+    //
+    //   gsl_vector_free(xtp);
+    //   return 0;
+    // }
 
     /* step */
     // cout << "iter = " << iter << endl;
