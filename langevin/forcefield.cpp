@@ -253,14 +253,20 @@ void ConfinmentSphere::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces
 //****************************************************************************
 // PolymerGaussian
 //****************************************************************************
-PolymerGaussian::PolymerGaussian(size_t offset, size_t N, double b) :
+PolymerGaussian::PolymerGaussian(size_t offset, size_t N, double b, gsl_spmatrix_uint *bonds) :
   m_offset(offset),
   m_N(N),
-  m_b(b)
+  m_b(b),
+  m_bonds(bonds)
 {
   /* initialize some parameters */
   m_ke = 1.5/(m_b*m_b);
   m_fpref = 2.*m_ke;
+
+  for (size_t i=0; i<m_N-1; ++i){
+    size_t n = m_offset + i;
+    gsl_spmatrix_uint_set(m_bonds, n, n+1, 1);
+  }
 }
 
 PolymerGaussian::~PolymerGaussian(){
@@ -307,14 +313,20 @@ void PolymerGaussian::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces)
 //****************************************************************************
 // PolymerHarmonic
 //****************************************************************************
-PolymerHarmonic::PolymerHarmonic(size_t offset, size_t N, double ke, double r0) :
+PolymerHarmonic::PolymerHarmonic(size_t offset, size_t N, double ke, double r0, gsl_spmatrix_uint *bonds) :
   m_offset(offset),
   m_N(N),
   m_ke(ke),
-  m_r0(r0)
+  m_r0(r0),
+  m_bonds(bonds)
 {
   /* initialize some parameters */
   m_fpref = 2.*m_ke;
+
+  for (size_t i=0; i<m_N-1; ++i){
+    size_t n = m_offset + i;
+    gsl_spmatrix_uint_set(m_bonds, n, n+1, 1);
+  }
 }
 
 PolymerHarmonic::~PolymerHarmonic(){
@@ -363,18 +375,24 @@ void PolymerHarmonic::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces)
 //****************************************************************************
 // PolymerFENE
 //****************************************************************************
-PolymerFENE::PolymerFENE(size_t offset, size_t N, double ke, double rc, double sigma, double eps) :
+PolymerFENE::PolymerFENE(size_t offset, size_t N, double ke, double rc, double sigma, double eps, gsl_spmatrix_uint *bonds) :
   m_offset(offset),
   m_N(N),
   m_ke(ke),
   m_rc(rc),
   m_sigma(sigma),
-  m_eps(eps)
+  m_eps(eps),
+  m_bonds(bonds)
 {
   m_pref = -0.5*m_ke*m_rc*m_rc;
   m_4eps = 4.0*m_eps;
   m_fpref_LJ = 48.0*m_eps / m_sigma;
   m_rc_LJ = m_sigma*pow(2.,1./6);
+
+  for (size_t i=0; i<m_N-1; ++i){
+    size_t n = m_offset + i;
+    gsl_spmatrix_uint_set(m_bonds, n, n+1, 1);
+  }
 
 }
 
@@ -488,11 +506,18 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 //****************************************************************************
 // PolymerKratkyPorod
 //****************************************************************************
-PolymerKratkyPorod::PolymerKratkyPorod(size_t offset, size_t N, double lp) :
+PolymerKratkyPorod::PolymerKratkyPorod(size_t offset, size_t N, double lp, gsl_spmatrix_uint *bonds) :
   m_offset(offset),
   m_N(N),
-  m_lp(lp)
+  m_lp(lp),
+  m_bonds(bonds)
 {
+  for (size_t i=1; i<m_N-1; ++i){
+    size_t n = m_offset + i;
+    gsl_spmatrix_uint_set(m_bonds, n-1, n, 1);
+    gsl_spmatrix_uint_set(m_bonds, n, n+1, 1);
+    gsl_spmatrix_uint_set(m_bonds, n-1, n+1, 1);
+  }
 }
 
 PolymerKratkyPorod::~PolymerKratkyPorod() {
@@ -579,108 +604,108 @@ void PolymerKratkyPorod::energy_force(gsl_matrix *x, double *u, gsl_matrix *forc
 //****************************************************************************
 // GEMField
 //****************************************************************************
-GEMField::GEMField(size_t offset, size_t N, double b, string filepath) :
-  m_offset(offset),
-  m_N(N),
-  m_b(b)
-{
-  /* declarations */
-  gsl_matrix *K(0);
-  ifstream fin;
-
-  /* initialize the matrix */
-  m_W = gsl_matrix_calloc(m_N,m_N);
-  K = gsl_matrix_calloc(m_N,m_N);
-  gsl_matrix_set_all(m_W,0.0);
-  gsl_matrix_set_all(K,0.0);
-
-  /* initialize the temporary vector */
-  m_fa = gsl_vector_calloc(m_N);
-
-  /* load couplings */
-  fin.open(filepath.c_str());
-  utils::load_matrix(fin, K);
-  fin.close();
-
-  /* compute quadratic matrix of interactions */
-  K2W(K,m_W);
-
-  /* initialize prefactor for force */
-  m_fpref = 3./(m_b*m_b);
-
-  /* exit */
-  gsl_matrix_free(K);
-}
-
-GEMField::~GEMField() {
-  gsl_matrix_free(m_W);
-  gsl_vector_free(m_fa);
-}
-
-/* methods */
-void GEMField::K2W(const gsl_matrix *K, gsl_matrix *W){
-  /*
-   * Compute quadratic matrix of interactions from coupling matrix.
-   */
-  double kij, w;
-
-  gsl_matrix_set_all(W,0.0);
-  for (size_t i=0; i<m_N; ++i){
-    for (size_t j=i; j<m_N; ++j){
-      // coupling for i,j
-      kij = gsl_matrix_get(K,i,j);
-
-      // ri^2 term
-      w = gsl_matrix_get(W,i,i);
-      w += kij;
-      gsl_matrix_set(W,i,i,w);
-
-      // rj^2 term
-      w = gsl_matrix_get(W,j,j);
-      w += kij;
-      gsl_matrix_set(W,j,j,w);
-
-      // ri.rj term
-      w = gsl_matrix_get(W,i,j);
-      w += -kij;
-      gsl_matrix_set(W,i,j,w);
-
-      // rj.ri term
-      w = gsl_matrix_get(W,j,i);
-      w += -kij;
-      gsl_matrix_set(W,j,i,w);
-    }
-  }
-
-  return;
-}
-void GEMField::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
-  /*
-   * Compute the potential energy and force (minus gradient) of a GEM potential.
-   *   \beta U(X, Y, Z) = 3/(2b^2) [ X^T W X + Y^T W Y + Z^T W Z],
-   *   where X, Y and Z are vectors of size N.
-   */
-
-  // make sub-matrix corresponding to atoms belonging to the GEM
-  gsl_matrix_view xsub = gsl_matrix_submatrix(x, m_offset, 0, m_N, x->size2);
-  gsl_matrix_view fsub = gsl_matrix_submatrix(forces, m_offset, 0, m_N, x->size2);
-
-  // iterate on the x,y and z coordinates and compute the force and energy
-  // contributions
-  for (size_t d=0; d<3; ++d){
-    gsl_vector_view xa = gsl_matrix_column(&xsub.matrix,d);
-    gsl_vector_view fa = gsl_matrix_column(&fsub.matrix,d);
-
-    // update force
-    linalg_dgemv(0, -m_fpref, m_W, &xa.vector, 0.0, m_fa);  // fa = -3/b^2 W.X
-    linalg_daxpy(1.0, m_fa, &fa.vector);
-
-    // update energy
-    *u += -0.5*linalg_ddot(&xa.vector, m_fa);               // U = 3/(2b^2) X^T W X
-  }
-
-  return;
-}
+// GEMField::GEMField(size_t offset, size_t N, double b, string filepath) :
+//   m_offset(offset),
+//   m_N(N),
+//   m_b(b)
+// {
+//   /* declarations */
+//   gsl_matrix *K(0);
+//   ifstream fin;
+//
+//   /* initialize the matrix */
+//   m_W = gsl_matrix_calloc(m_N,m_N);
+//   K = gsl_matrix_calloc(m_N,m_N);
+//   gsl_matrix_set_all(m_W,0.0);
+//   gsl_matrix_set_all(K,0.0);
+//
+//   /* initialize the temporary vector */
+//   m_fa = gsl_vector_calloc(m_N);
+//
+//   /* load couplings */
+//   fin.open(filepath.c_str());
+//   utils::load_matrix(fin, K);
+//   fin.close();
+//
+//   /* compute quadratic matrix of interactions */
+//   K2W(K,m_W);
+//
+//   /* initialize prefactor for force */
+//   m_fpref = 3./(m_b*m_b);
+//
+//   /* exit */
+//   gsl_matrix_free(K);
+// }
+//
+// GEMField::~GEMField() {
+//   gsl_matrix_free(m_W);
+//   gsl_vector_free(m_fa);
+// }
+//
+// /* methods */
+// void GEMField::K2W(const gsl_matrix *K, gsl_matrix *W){
+//   /*
+//    * Compute quadratic matrix of interactions from coupling matrix.
+//    */
+//   double kij, w;
+//
+//   gsl_matrix_set_all(W,0.0);
+//   for (size_t i=0; i<m_N; ++i){
+//     for (size_t j=i; j<m_N; ++j){
+//       // coupling for i,j
+//       kij = gsl_matrix_get(K,i,j);
+//
+//       // ri^2 term
+//       w = gsl_matrix_get(W,i,i);
+//       w += kij;
+//       gsl_matrix_set(W,i,i,w);
+//
+//       // rj^2 term
+//       w = gsl_matrix_get(W,j,j);
+//       w += kij;
+//       gsl_matrix_set(W,j,j,w);
+//
+//       // ri.rj term
+//       w = gsl_matrix_get(W,i,j);
+//       w += -kij;
+//       gsl_matrix_set(W,i,j,w);
+//
+//       // rj.ri term
+//       w = gsl_matrix_get(W,j,i);
+//       w += -kij;
+//       gsl_matrix_set(W,j,i,w);
+//     }
+//   }
+//
+//   return;
+// }
+// void GEMField::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+//   /*
+//    * Compute the potential energy and force (minus gradient) of a GEM potential.
+//    *   \beta U(X, Y, Z) = 3/(2b^2) [ X^T W X + Y^T W Y + Z^T W Z],
+//    *   where X, Y and Z are vectors of size N.
+//    */
+//
+//   // make sub-matrix corresponding to atoms belonging to the GEM
+//   gsl_matrix_view xsub = gsl_matrix_submatrix(x, m_offset, 0, m_N, x->size2);
+//   gsl_matrix_view fsub = gsl_matrix_submatrix(forces, m_offset, 0, m_N, x->size2);
+//
+//   // iterate on the x,y and z coordinates and compute the force and energy
+//   // contributions
+//   for (size_t d=0; d<3; ++d){
+//     gsl_vector_view xa = gsl_matrix_column(&xsub.matrix,d);
+//     gsl_vector_view fa = gsl_matrix_column(&fsub.matrix,d);
+//
+//     // update force
+//     linalg_dgemv(0, -m_fpref, m_W, &xa.vector, 0.0, m_fa);  // fa = -3/b^2 W.X
+//     linalg_daxpy(1.0, m_fa, &fa.vector);
+//
+//     // update energy
+//     *u += -0.5*linalg_ddot(&xa.vector, m_fa);               // U = 3/(2b^2) X^T W X
+//   }
+//
+//   return;
+// }
 
 //****************************************************************************
 // SoftCore

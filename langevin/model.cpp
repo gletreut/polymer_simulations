@@ -74,6 +74,9 @@ void MDWorld::init() {
   m_constraints.clear();
   m_neighbors.clear();
 
+  // bond matrix
+  m_bonds = gsl_spmatrix_uint_alloc(m_npart, m_npart);
+
   return;
 }
 
@@ -114,6 +117,9 @@ void MDWorld::clear() {
       delete (*it);
     }
   }
+
+  /* delete weight matrix */
+  gsl_spmatrix_uint_free(m_bonds);
 
   return;
 }
@@ -352,7 +358,7 @@ void MDWorld::update_neighbor_lists(size_t iter){
 
   /* iterate over neighbor lists */
   for (vector<NeighborList*>::iterator it=m_neighbors.begin(); it!=m_neighbors.end(); ++it){
-      (*it)->build(m_x);
+      (*it)->build(m_x, m_bonds);
       (*it)->update_counter(iter);
   }
 

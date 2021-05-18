@@ -211,7 +211,7 @@ int main(int argc, char *argv[]){
 
   /* initialize neighbor lists */
   for (vector<NeighborList*>::iterator it=world->m_neighbors.begin(); it!=world->m_neighbors.end(); ++it){
-    (*it)->build(world->m_x);
+    (*it)->build(world->m_x, world->m_bonds);
   }
   nlist_updated=true;
 

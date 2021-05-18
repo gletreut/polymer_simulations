@@ -27,6 +27,7 @@
 
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
+#include <gsl/gsl_spmatrix.h>
 #include <gsl/gsl_rng.h>
 
 #include "forcefield.h"
@@ -51,6 +52,7 @@ class MDWorld {
     std::vector<ForceField*> m_ffields;       // list of active force fields (minus gradient of positional potential)
     std::vector<Constraint*> m_constraints;   // list of active constraints
     std::vector<NeighborList*> m_neighbors;   // list of neighbor lists
+    gsl_spmatrix_uint *m_bonds;               // is there bonds (0 or 1) between particles. If 1 then non-bonded interactions not computed.
 
     /* constructor / destructor */
     MDWorld(size_t npart=1, double lx=1., double ly=1., double lz=1.,

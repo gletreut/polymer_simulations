@@ -23,6 +23,7 @@
 
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
+#include <gsl/gsl_spmatrix.h>
 #include <gsl/gsl_rng.h>
 
 #include "neighborlist.h"
@@ -98,9 +99,10 @@ class PolymerGaussian : public ForceField {
     size_t m_N;         // number of monomers
     double m_b;         // bond length b
     double m_ke;        // energy / b^2 for FENE bond
+    gsl_spmatrix_uint *m_bonds; // bond selector
 
     /* constructor and destructor */
-    PolymerGaussian(size_t offset, size_t N, double b);
+    PolymerGaussian(size_t offset, size_t N, double b, gsl_spmatrix_uint *bonds);
     ~PolymerGaussian();
 
     /* methods */
@@ -122,9 +124,11 @@ class PolymerHarmonic : public ForceField {
     size_t m_N;         // number of monomers
     double m_ke;        // energy / b^2 for FENE bond
     double m_r0;
+    gsl_spmatrix_uint *m_bonds; // bond selector
 
     /* constructor and destructor */
-    PolymerHarmonic(size_t offset, size_t N, double ke=100, double r0=1.);
+    // PolymerHarmonic(size_t offset, size_t N, double ke=100, double r0=1.);
+    PolymerHarmonic(size_t offset, size_t N, double ke, double r0, gsl_spmatrix_uint *bonds);
     ~PolymerHarmonic();
 
     /* methods */
@@ -148,9 +152,11 @@ class PolymerFENE : public ForceField {
     double m_rc;        // cutoff for FENE bond
     double m_sigma;     // hard-core distance for LJ
     double m_eps;       // energy scale for LJ
+    gsl_spmatrix_uint *m_bonds; // bond selector
 
     /* constructor and destructor */
-    PolymerFENE(size_t offset, size_t N, double ke=30.0, double rc=1.5, double sigma=1.0, double eps=1.0);
+    // PolymerFENE(size_t offset, size_t N, double ke=30.0, double rc=1.5, double sigma=1.0, double eps=1.0);
+    PolymerFENE(size_t offset, size_t N, double ke, double rc, double sigma, double eps, gsl_spmatrix_uint *bonds);
     ~PolymerFENE();
 
     /* methods */
@@ -176,43 +182,45 @@ class PolymerKratkyPorod : public ForceField {
     size_t m_offset;    // index of first monomer
     size_t m_N;         // number of monomers
     double m_lp;        // persistence length (in units of bond length)
+    gsl_spmatrix_uint *m_bonds; // bond selector
 
     /* constructor and destructor */
-    PolymerKratkyPorod(size_t offset, size_t N, double lp);
+    PolymerKratkyPorod(size_t offset, size_t N, double lp, gsl_spmatrix_uint *bonds);
     ~PolymerKratkyPorod();
 
     /* methods */
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 };
 
-class GEMField : public ForceField {
-  /*
-   * Class defining a Gaussian Effective Model force field.
-   * It consists of elastic interactions to be overlaid on a Polymer force
-   * field. It is parametrized by a matrix W such that the potential is:
-   *   \beta U(X, Y, Z) = 3/(2b^2) [ X^T W X + Y^T W Y + Z^T W Z],
-   *   where X, Y and Z are vectors of size N.
-   */
-
-  public:
-    /* attributes */
-    size_t m_offset;    // index of first monomer
-    size_t m_N;         // number of monomers
-    double m_b;
-    gsl_matrix *m_W;    // interaction potential matrix.
-
-    /* constructor and destructor */
-    GEMField(size_t offset, size_t N, double b, std::string filepath);
-    ~GEMField();
-
-    /* methods */
-    void K2W(const gsl_matrix *K, gsl_matrix *W);
-    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-
-  private:
-    double m_fpref;
-    gsl_vector *m_fa;
-};
+// would need to deal with bonded interactions for the following potential (not sparse)
+// class GEMField : public ForceField {
+//   /*
+//    * Class defining a Gaussian Effective Model force field.
+//    * It consists of elastic interactions to be overlaid on a Polymer force
+//    * field. It is parametrized by a matrix W such that the potential is:
+//    *   \beta U(X, Y, Z) = 3/(2b^2) [ X^T W X + Y^T W Y + Z^T W Z],
+//    *   where X, Y and Z are vectors of size N.
+//    */
+//
+//   public:
+//     /* attributes */
+//     size_t m_offset;    // index of first monomer
+//     size_t m_N;         // number of monomers
+//     double m_b;
+//     gsl_matrix *m_W;    // interaction potential matrix.
+//
+//     /* constructor and destructor */
+//     GEMField(size_t offset, size_t N, double b, std::string filepath);
+//     ~GEMField();
+//
+//     /* methods */
+//     void K2W(const gsl_matrix *K, gsl_matrix *W);
+//     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+//
+//   private:
+//     double m_fpref;
+//     gsl_vector *m_fa;
+// };
 
 class SoftCore : public ForceField {
   /*

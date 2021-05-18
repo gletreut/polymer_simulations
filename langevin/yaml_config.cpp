@@ -260,7 +260,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       offset = FNode["offset"].as<size_t>();
       N = FNode["N"].as<size_t>();
       b = FNode["b"].as<double>();
-      ffield = new PolymerGaussian(offset, N, b);
+      ffield = new PolymerGaussian(offset, N, b, world->m_bonds);
       world->m_ffields.push_back(ffield);
     }
     else if (key == "PolymerHarmonic") {
@@ -273,7 +273,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       N = FNode["N"].as<size_t>();
       ke = FNode["ke"].as<double>();
       r0 = FNode["r0"].as<double>();
-      ffield = new PolymerHarmonic(offset, N, ke, r0);
+      ffield = new PolymerHarmonic(offset, N, ke, r0, world->m_bonds);
       world->m_ffields.push_back(ffield);
     }
     else if (key == "PolymerFENE") {
@@ -288,7 +288,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       rc = FNode["rc"].as<double>();
       sigma = FNode["sigma"].as<double>();
       epsilon = FNode["epsilon"].as<double>();
-      ffield = new PolymerFENE(offset, N, ke, rc, sigma, epsilon);
+      ffield = new PolymerFENE(offset, N, ke, rc, sigma, epsilon, world->m_bonds);
       world->m_ffields.push_back(ffield);
     }
     else if (key == "PolymerKratkyPorod") {
@@ -300,23 +300,23 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       offset = FNode["offset"].as<size_t>();
       N = FNode["N"].as<size_t>();
       lp = FNode["lp"].as<double>();
-      ffield = new PolymerKratkyPorod(offset, N, lp);
+      ffield = new PolymerKratkyPorod(offset, N, lp, world->m_bonds);
       world->m_ffields.push_back(ffield);
     }
-    else if (key == "GEMField") {
-      size_t offset, N;
-      double b;
-      string kmat_fpath;
-      cout << "Adding force field of type: " << key << endl;
-      cout << "Parameters:" << endl;
-      cout << FNode << endl;
-      offset = FNode["offset"].as<size_t>();
-      N = FNode["N"].as<size_t>();
-      b = FNode["b"].as<double>();
-      kmat_fpath = FNode["kmat_fpath"].as<string>();
-      ffield = new GEMField(offset, N, b, kmat_fpath);
-      world->m_ffields.push_back(ffield);
-    }
+    // else if (key == "GEMField") {
+    //   size_t offset, N;
+    //   double b;
+    //   string kmat_fpath;
+    //   cout << "Adding force field of type: " << key << endl;
+    //   cout << "Parameters:" << endl;
+    //   cout << FNode << endl;
+    //   offset = FNode["offset"].as<size_t>();
+    //   N = FNode["N"].as<size_t>();
+    //   b = FNode["b"].as<double>();
+    //   kmat_fpath = FNode["kmat_fpath"].as<string>();
+    //   ffield = new GEMField(offset, N, b, kmat_fpath);
+    //   world->m_ffields.push_back(ffield);
+    // }
     else if (key == "SoftCore") {
       double A, sigma, rskin;
       size_t npair_max;
