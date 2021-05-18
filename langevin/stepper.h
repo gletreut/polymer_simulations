@@ -22,10 +22,10 @@
 class MDStepper {
   public:
     /* attributes */
+    MDWorld *m_world;
     double m_dt;
     double m_gam;
     double m_mass_i;
-    MDWorld *m_world;
     gsl_matrix *m_x, *m_v, *m_f;
 
     /* constructor / destructor */

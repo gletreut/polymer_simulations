@@ -26,6 +26,9 @@
 #include "model.h"
 #include "stepper.h"
 #include "integration.h"
+#include "forcefield.h"
+#include "constraint.h"
+#include "neighborlist.h"
 
 // yaml_config
 namespace yaml_config {

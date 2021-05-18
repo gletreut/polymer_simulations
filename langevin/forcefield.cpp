@@ -685,10 +685,9 @@ void GEMField::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 //****************************************************************************
 // SoftCore
 //****************************************************************************
-SoftCore::SoftCore(double A, double sigma, gsl_matrix_uint *neighbor, gsl_vector_uint *neighbor_num) :
+SoftCore::SoftCore(double A, double sigma, NeighborList *neighbors) :
   m_A(A),
-  m_neighbor(neighbor),
-  m_neighbor_num(neighbor_num)
+  m_neighbors(neighbors)
 {
   double pi = atan(1.)*4;
 
@@ -737,32 +736,33 @@ void SoftCore::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
    * f = A \pi / \xi \sin(\pi r / \xi)
    */
 
-  size_t N, nneigh;
+  size_t n,m;
   double fnorm, r;
   gsl_vector *xtp(0);
 
   // initialize
-  N = x->size1;
   xtp = gsl_vector_calloc(3);
 
-  for (size_t n=0; n<N; ++n){
+  for (size_t i=0; i<m_neighbors->m_npair; ++i){
+    n = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 0);
+    m = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 1);
+
     gsl_vector_view xn = gsl_matrix_row(x, n);
+    gsl_vector_view xm = gsl_matrix_row(x, m);
     gsl_vector_view fn = gsl_matrix_row(forces, n);
-    nneigh = gsl_vector_uint_get(m_neighbor_num, n);
-    for (size_t i=0; i<nneigh; ++i) {
-      size_t m = gsl_matrix_uint_get(m_neighbor, n, i);
-      gsl_vector_view xm = gsl_matrix_row(x, m);
-      gsl_vector_memcpy(xtp, &xn.vector);
-      linalg_daxpy(-1., &xm.vector, xtp);               // xtp = xn-xm
-      r = linalg_dnrm2(xtp);
+    gsl_vector_view fm = gsl_matrix_row(forces, m);
 
-      // energy
-      *u += energy_scal(r);
+    gsl_vector_memcpy(xtp, &xn.vector);
+    linalg_daxpy(-1., &xm.vector, xtp);               // xtp = xn-xm
+    r = linalg_dnrm2(xtp);
 
-      // force
-      fnorm = force_scal(r);
-      linalg_daxpy(fnorm/r, xtp, &fn.vector);
-    }
+    // energy
+    *u += energy_scal(r);
+
+    // force
+    fnorm = force_scal(r);
+    linalg_daxpy(fnorm/r, xtp, &fn.vector);
+    linalg_daxpy(-fnorm/r, xtp, &fm.vector);
   }
 
   /* exit */
@@ -773,12 +773,11 @@ void SoftCore::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 //****************************************************************************
 // PairLJ
 //****************************************************************************
-PairLJ::PairLJ(double eps, double sigma, double rc_LJ, gsl_matrix_uint *neighbor, gsl_vector_uint *neighbor_num) :
-  m_sigma(sigma),
+PairLJ::PairLJ(double eps, double sigma, double rc_LJ, NeighborList *neighbors) :
   m_eps(eps),
+  m_sigma(sigma),
   m_rc_LJ(rc_LJ),
-  m_neighbor(neighbor),
-  m_neighbor_num(neighbor_num)
+  m_neighbors(neighbors)
 
 {
   m_4eps = 4.0*m_eps;
@@ -835,35 +834,41 @@ void PairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
    * Compute the potential energy and force (minus gradient) produced by pair Lennard-Jones interactions.
    */
 
-  size_t N, nneigh;
+  size_t n, m;
   double fnorm, r;
   gsl_vector *xtp(0);
 
   // initialize
-  N = x->size1;
+  n = 0;
+  m = 0;
+  r = 0.;
+  fnorm = 0.;
   xtp = gsl_vector_calloc(3);
 
-  for (size_t n=0; n<N; ++n){
+  for (size_t i=0; i<m_neighbors->m_npair; ++i){
+    n = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 0);
+    m = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 1);
+
     gsl_vector_view xn = gsl_matrix_row(x, n);
+    gsl_vector_view xm = gsl_matrix_row(x, m);
     gsl_vector_view fn = gsl_matrix_row(forces, n);
-    nneigh = gsl_vector_uint_get(m_neighbor_num, n);
-    for (size_t i=0; i<nneigh; ++i) {
-      size_t m = gsl_matrix_uint_get(m_neighbor, n, i);
-      gsl_vector_view xm = gsl_matrix_row(x, m);
-      gsl_vector_memcpy(xtp, &xn.vector);
-      linalg_daxpy(-1., &xm.vector, xtp);               // xtp = xn-xm
-      r = linalg_dnrm2(xtp);
+    gsl_vector_view fm = gsl_matrix_row(forces, m);
 
-      // energy
-      *u += 0.5*energy_LJ_scal(r);
+    gsl_vector_memcpy(xtp, &xn.vector);
+    linalg_daxpy(-1., &xm.vector, xtp);               // xtp = xn-xm
+    r = linalg_dnrm2(xtp);
 
-      // force
-      fnorm = force_LJ_scal(r);
-      linalg_daxpy(fnorm/r, xtp, &fn.vector);
-    }
+    // energy
+    *u += energy_LJ_scal(r);
+
+    // force
+    fnorm = force_LJ_scal(r);
+    linalg_daxpy(fnorm/r, xtp, &fn.vector);
+    linalg_daxpy(-fnorm/r, xtp, &fm.vector);
   }
 
   /* exit */
   gsl_vector_free(xtp);
+  return;
 }
 

@@ -18,7 +18,7 @@ endif
 LDLIBS += -lboost_filesystem -lboost_system
 LDLIBS += -lyaml-cpp
 
-SRC = main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper.cpp constraint.cpp integration.cpp yaml_config.cpp
+SRC = main.cpp model.cpp utils.cpp forcefield.cpp neighborlist.cpp linalg.cpp stepper.cpp constraint.cpp integration.cpp yaml_config.cpp
 OBJS = $(SRC:.cpp=.o)
 PROG = ../bin/simu_langevin
 
@@ -27,22 +27,25 @@ all: $(PROG)
 $(PROG): $(OBJS)
 	 $(CC) $(CFLAGS) $(OBJS) -o $@ $(LDFLAGS) $(LDLIBS)
 
-main.o: main.cpp utils.h linalg.h forcefield.h model.h stepper.h global.h integration.h
+main.o: main.cpp utils.h linalg.h forcefield.h neighborlist.h model.h stepper.h global.h integration.h
 	$(CC) $(CFLAGS) -c main.cpp
 
-model.o: model.h model.cpp
+model.o: model.h forcefield.h utils.h constraint.h neighborlist.h model.cpp
 	$(CC) $(CFLAGS) -c model.cpp
 
-forcefield.o: forcefield.h forcefield.cpp
+forcefield.o: forcefield.h linalg.h utils.h forcefield.cpp
 	$(CC) $(CFLAGS) -c forcefield.cpp
 
-constraint.o: constraint.h constraint.cpp
+constraint.o: constraint.h linalg.h utils.h constraint.cpp
 	$(CC) $(CFLAGS) -c constraint.cpp
+
+neighborlist.o: neighborlist.h linalg.h utils.h neighborlist.cpp
+	$(CC) $(CFLAGS) -c neighborlist.cpp
 
 integration.o: integration.h integration.cpp
 	$(CC) $(CFLAGS) -c integration.cpp
 
-stepper.o: stepper.h stepper.cpp
+stepper.o: stepper.h model.h linalg.h utils.h stepper.cpp
 	$(CC) $(CFLAGS) -c stepper.cpp
 
 linalg.o: linalg.h linalg.cpp
@@ -51,7 +54,7 @@ linalg.o: linalg.h linalg.cpp
 utils.o: utils.h utils.tpp utils.cpp
 	$(CC) $(CFLAGS) -c utils.cpp
 
-yaml_config.o: yaml_config.h yaml_config.cpp
+yaml_config.o: yaml_config.h model.h stepper.h integration.h forcefield.h constraint.h neighborlist.h yaml_config.cpp
 	$(CC) $(CFLAGS) -c yaml_config.cpp
 
 clean:

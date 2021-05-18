@@ -25,6 +25,7 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_rng.h>
 
+#include "neighborlist.h"
 #include "linalg.h"
 #include "utils.h"
 
@@ -221,14 +222,13 @@ class SoftCore : public ForceField {
 
   public:
     /* attributes */
-    double m_A;        // scale
-    double m_rc;       // cutoff of interaction
-    double m_y;        // hold the ratio pi / rc
-    gsl_matrix_uint *m_neighbor;        // pointer to neighbor list
-    gsl_vector_uint *m_neighbor_num;    // pointer to neighbor number list
+    double m_A;                     // scale
+    double m_rc;                    // cutoff of interaction
+    double m_y;                     // hold the ratio pi / rc
+    NeighborList *m_neighbors;      // neighbor list
 
     /* constructor and destructor */
-    SoftCore(double A, double sigma, gsl_matrix_uint *neighbor, gsl_vector_uint *neighbor_num);
+    SoftCore(double A, double sigma, NeighborList* neighbors);
     ~SoftCore();
 
     /* methods */
@@ -245,14 +245,13 @@ class PairLJ : public ForceField {
 
   public:
     /* attributes */
-    double m_eps;     // scale
-    double m_sigma;       // hard-core distance
-    double m_rc_LJ;          // cutoff
-    gsl_matrix_uint *m_neighbor;        // pointer to neighbor list
-    gsl_vector_uint *m_neighbor_num;    // pointer to neighbor number list
+    double m_eps;                 // scale
+    double m_sigma;               // hard-core distance
+    double m_rc_LJ;               // cutoff
+    NeighborList *m_neighbors;    // neighbor list
 
     /* constructor and destructor */
-    PairLJ(double eps, double sigma, double rc_LJ, gsl_matrix_uint *neighbor, gsl_vector_uint *neighbor_num);
+    PairLJ(double eps, double sigma, double rc_LJ, NeighborList* neighbors);
     ~PairLJ();
 
     /* methods */

@@ -90,17 +90,6 @@ void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
     world->m_mass = lineup["mass"].as<double>();
   }
 
-  // neighbor list
-  if (lineup["neighbor_cutoff"]){
-    world->m_neighbor_cutoff = lineup["neighbor_cutoff"].as<double>();
-  }
-
-  if (lineup["neighbor_max"]){
-    world->clear();
-    world->m_neighbor_max = lineup["neighbor_max"].as<size_t>();
-    world->init();
-  }
-
   // positions initialization
   YAML::Node init_pos = lineup["init_pos"];
   if (! init_pos){
@@ -329,24 +318,36 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
     else if (key == "SoftCore") {
-      double A, sigma;
+      double A, sigma, rskin;
+      size_t npair_max;
+      NeighborList *nneighbor(0);
       cout << "Adding force field of type: " << key << endl;
       cout << "Parameters:" << endl;
       cout << FNode << endl;
       A = FNode["A"].as<double>();
       sigma = FNode["sigma"].as<double>();
-      ffield = new SoftCore(A, sigma, world->m_neighbor, world->m_neighbor_num);
+      rskin = FNode["rskin"].as<double>();
+      npair_max = FNode["npair_max"].as<size_t>();
+      nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
+      world->m_neighbors.push_back(nneighbor);
+      ffield = new SoftCore(A, sigma, nneighbor);
       world->m_ffields.push_back(ffield);
     }
     else if (key == "PairLJ") {
-      double eps, sigma, rc;
+      double eps, sigma, rc, rskin;
+      size_t npair_max;
+      NeighborList *nneighbor(0);
       cout << "Adding force field of type: " << key << endl;
       cout << "Parameters:" << endl;
       cout << FNode << endl;
       eps = FNode["eps"].as<double>();
       sigma = FNode["sigma"].as<double>();
       rc = FNode["rc"].as<double>();
-      ffield = new PairLJ(eps, sigma, rc, world->m_neighbor, world->m_neighbor_num);
+      rskin = FNode["rskin"].as<double>();
+      npair_max = FNode["npair_max"].as<size_t>();
+      nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
+      world->m_neighbors.push_back(nneighbor);
+      ffield = new PairLJ(eps, sigma, rc, nneighbor);
       world->m_ffields.push_back(ffield);
     }
     else {
@@ -451,7 +452,6 @@ void yaml_config::init_integration_params(YAML::Node config, IntegrationParams &
 
   string rootkey;
   YAML::Node lineup;
-  Constraint *constraint(0);
 
   rootkey = "integration";
 
