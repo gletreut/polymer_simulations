@@ -1,0 +1,9 @@
+name: polymer_langevin
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - boost-cpp
+  - gsl
+  - yaml-cpp

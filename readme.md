@@ -3,13 +3,25 @@ This repository contains code for performing simulations of a semi-flexible poly
 * Monte-Carlo. It uses the Metropolis-Hasting algorithm. Configurations are generated through crankshaft and pivot moves. The elasticity is not taken into account and the bond length between monomers remains unchanged.
 * Langevin. It uses Langevin dynamics. An integration time step needs to be specified.
 
+## Environment
+The following pacakges are needed:
+* `gsl`
+* `boost-cpp`
+* `yaml-cpp`
+
+The conda environment needs to be configured. Namely the `include` and `library` paths need to be added to the path.
+Copy-paste the directory `script/etc` into `$CONDA_PREFIX/`. This makes sure that when
+activating the conda environment, `include` and `library` paths in `$CONDA_PREFIX/`
+(default installation directory when installing packages with `conda install ...`) are
+added to the `PATH` bash variable.
+
 ## Compilation
 Compilation of both implementations is achieved through:
 ```
 make -C langevin/
 ```
 
-There is a problem with the compilation, use instead:
+If there is a problem with the compilation, use instead:
 ```
 g++ -std=c++11 -O3 -Wall -DGSL main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper cpp constraint.cpp integration.cpp yaml_config.cpp -o ../bin/simu_langevin -lm -lgsl -lgslcblas -lboost_filesystem -lboost_system -lyaml-cpp
 ```
