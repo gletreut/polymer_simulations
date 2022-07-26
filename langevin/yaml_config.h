@@ -15,6 +15,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <utility>
 
 // external library
 #include <gsl/gsl_rng.h>

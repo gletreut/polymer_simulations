@@ -897,3 +897,130 @@ void PairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   return;
 }
 
+//****************************************************************************
+// PolarPairLJ
+//****************************************************************************
+PolarPairLJ::PolarPairLJ(double eps, double sigma, double rc_LJ, NeighborList *neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
+  PairLJ(eps, sigma, rc_LJ, neighbors),
+  m_chain_ends(chain_ends)
+
+{
+}
+
+PolarPairLJ::~PolarPairLJ()
+{
+}
+
+double PolarPairLJ::energy_LJ_scal(double r, double sigma){
+  /*
+   * compute the energy of the  LJ interaction when the algebric
+   * distance is r.
+   */
+
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_4eps*(x12 - x6) - m_u0;
+  }
+  else {
+    return 0.0;
+  }
+}
+
+double PolarPairLJ::force_LJ_scal(double r, sigma){
+  /*
+   * compute the algebric norm of the LJ force applied when the algebric
+   * distance is r.
+   */
+  double x, x6, x12;
+
+  if (fabs(r) < m_rc_LJ) {
+    x = sigma/r;
+    x6 = x*x*x*x*x*x;
+    x12 = x6*x6;
+    return m_fpref*x*(x12 - 0.5*x6);
+  }
+  else {
+    return 0.0;
+  }
+}
+
+void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the potential energy and force (minus gradient) produced by pair Lennard-Jones interactions.
+   */
+
+  size_t n, m;
+  double fnorm, r;
+  gsl_vector *xtp(0);
+
+  // initialize
+  n = 0;
+  m = 0;
+  r = 0.;
+  fnorm = 0.;
+  xtp = gsl_vector_calloc(3);
+  pol_vec = gsl_matrix_calloc(x->size1, 3);
+
+  // compute polarity vectors:m_chain_ends
+  for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it) {
+    size_t istart = it->first;
+    size_t iend = it->first;
+
+    // interior beads
+    for (size_t i = istart + 1; i < iend; i++){
+      // compute polarity vector with first formula
+      // pol_vec[i] = ....
+    }
+
+    // end beads
+    // case 1: start
+    // pol_vec_p1 = pol_vec[istart+1]
+    // u = x_p1 - x_istart
+    // pol_vec_start = unit vector orthogonal to u and in the (u, pol_vec_p1) plane such that pol_vec_start . pol_vec_p1 > 0
+
+    // case 2: end
+    // pol_vec_p1 = pol_vec[iend-1]
+    // u = x_iend - x_p1
+    // pol_vec_end = unit vector orthogonal to u and in the (u, pol_vec_p1) plane such that pol_vec_end . pol_vec_p1 > 0
+  }
+
+  // Loop neighbors
+  for (size_t i=0; i<m_neighbors->m_npair; ++i){
+    n = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 0);
+    m = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 1);
+
+    gsl_vector_view xn = gsl_matrix_row(x, n);
+    gsl_vector_view xm = gsl_matrix_row(x, m);
+    gsl_vector_view fn = gsl_matrix_row(forces, n);
+    gsl_vector_view fm = gsl_matrix_row(forces, m);
+
+    gsl_vector_memcpy(xtp, &xn.vector);
+    linalg_daxpy(-1., &xm.vector, xtp);               // xtp = xn-xm
+    r = linalg_dnrm2(xtp);
+
+    // retrieve the polarity vector
+    pn = pol_vec[n]
+    pm = pol_vec[m]
+    pol = pm - pn
+    sigma = m_sigma*(1 + f(xtp, pol))
+
+    // energy
+    // *u += energy_LJ_scal(r);
+    *u += energy_LJ_scal(r, sigma);
+
+    // force
+    // fnorm = force_LJ_scal(r);
+    fnorm = force_LJ_scal(r, sigma);
+    linalg_daxpy(fnorm/r, xtp, &fn.vector);
+    linalg_daxpy(-fnorm/r, xtp, &fm.vector);
+  }
+
+  /* exit */
+  gsl_vector_free(xtp);
+  gsl_matrix_free(pol_vec);
+  return;
+}

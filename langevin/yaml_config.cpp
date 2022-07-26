@@ -350,6 +350,34 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new PairLJ(eps, sigma, rc, nneighbor);
       world->m_ffields.push_back(ffield);
     }
+    else if (key == "PolarPairLJ") {
+      double eps, sigma, rc, rskin;
+      size_t npair_max;
+      NeighborList *nneighbor(0);
+      cout << "Adding force field of type: " << key << endl;
+      cout << "Parameters:" << endl;
+      cout << FNode << endl;
+      eps = FNode["eps"].as<double>();
+      sigma = FNode["sigma"].as<double>();
+      rc = FNode["rc"].as<double>();
+      rskin = FNode["rskin"].as<double>();
+      npair_max = FNode["npair_max"].as<size_t>();
+      nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
+
+      YAML::Node chain_ends = FNode["chain_ends"];
+      vector<pair<size_t, size_t> > chain_ends_list;
+      for (size_t i=0; i<chain_ends.size(); i++) {
+        size_t istart = chain_ends[i][0].as<size_t>();
+        size_t iend = chain_ends[i][1].as<size_t>();
+        pair<size_t, size_t> mypair (istart, iend);
+        chain_ends_list.push_back(mypair);
+      }
+
+      world->m_neighbors.push_back(nneighbor);
+      ffield = new PolarPairLJ(eps, sigma, rc, nneighbor, chain_ends_list);
+      world->m_ffields.push_back(ffield);
+      throw invalid_argument("PolarPairLJ breakpoint!");
+    }
     else {
       cout << "Unrecognized force field type: " << key << endl;
     }

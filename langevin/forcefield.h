@@ -273,4 +273,25 @@ class PairLJ : public ForceField {
     double m_u0;
 };
 
+class PolarPairLJ : public PairLJ {
+  /*
+   * Class defining a force field for Lennard-Jones pair potential
+   *
+   */
+
+  public:
+    /* attributes */
+    std::vector<std::pair<size_t, size_t> > m_chain_ends;
+
+    /* constructor and destructor */
+    PolarPairLJ(double eps, double sigma, double rc_LJ, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
+    ~PolarPairLJ();
+
+    /* methods */
+    double energy_LJ_scal(double r, double sigma);
+    double force_LJ_scal(double r, double sigma);
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+
+};
+
 #endif
