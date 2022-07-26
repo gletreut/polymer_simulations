@@ -29,9 +29,9 @@ g++ -std=c++11 -O3 -Wall -DGSL main.cpp model.cpp utils.cpp forcefield.cpp linal
 ## Execution
 The program is then executed as follows:
 ```
-./prog < config
+./simu_langevin [positions_init.dat] < config
 ```
-where `config` is the configuration file. Examples of such files for both implementations are given in the `configs` folder.
+where `config` is the configuration file, and `positions_init.dat` is an optional file containing the initial configuration.
 
 This program prints the energy of the system at each time step. The configurations are written in the `pol.xyz` file.
 
