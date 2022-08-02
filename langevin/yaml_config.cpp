@@ -11,6 +11,9 @@ using namespace std;
 //****************************************************************************
 //* yaml_config namespace
 //****************************************************************************
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 string yamltype_str(YAML::NodeType::value type){
   if (type == YAML::NodeType::Undefined) {
     return "Undefined";
@@ -31,7 +34,10 @@ string yamltype_str(YAML::NodeType::value type){
     return "Error";
   }
 }
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
   /*
    * Re-initialize the MDWorld object based on the input parameters.
@@ -125,7 +131,10 @@ void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
 
   return;
 }
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_rng(YAML::Node config, gsl_rng *rng) {
   /*
    * initialize random number generator
@@ -147,7 +156,10 @@ void yaml_config::init_rng(YAML::Node config, gsl_rng *rng) {
 
   return;
 }
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_stepper(YAML::Node config, gsl_rng *rng, MDWorld *world, MDStepper* &stepper) {
   /*
    * initialize a stepper
@@ -195,7 +207,11 @@ void yaml_config::init_stepper(YAML::Node config, gsl_rng *rng, MDWorld *world, 
 
   return;
 }
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// FORCEFEILD CONFIGURATION
 void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
   /*
    * Initialize forcefields
@@ -224,7 +240,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     throw invalid_argument("<forcefield> must be a map");
   }
 
-  // iterate on nodes and add forcefields
+  // Iterate on Nodes and Add Forcefields
   for (YAML::const_iterator it=lineup.begin(); it!=lineup.end(); ++it){
     string key;
     YAML::Node FNode;
@@ -240,6 +256,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new ConfinmentBox(-0.5*world->m_lx, +0.5*world->m_lx, -0.5*world->m_ly,+0.5*world->m_ly,-0.5*world->m_lz,+0.5*world->m_lz,sigma,epsilon);
       world->m_ffields.push_back(ffield);
     }
+
+    // (3) ConfinmentSphere
     else if (key == "ConfinmentSphere") {
       double radius, sigma, epsilon;
       cout << "Adding force field of type: " << key << endl;
@@ -251,6 +269,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new ConfinmentSphere(radius, sigma, epsilon);
       world->m_ffields.push_back(ffield);
     }
+
+    // (4) PolymerGaussian
     else if (key == "PolymerGaussian") {
       size_t offset, N;
       double b;
@@ -263,6 +283,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new PolymerGaussian(offset, N, b, world->m_bonds);
       world->m_ffields.push_back(ffield);
     }
+
+    // (5) PolymerHarmonic
     else if (key == "PolymerHarmonic") {
       size_t offset, N;
       double ke, r0;
@@ -276,6 +298,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new PolymerHarmonic(offset, N, ke, r0, world->m_bonds);
       world->m_ffields.push_back(ffield);
     }
+
+    // (6) PolymerFENE
     else if (key == "PolymerFENE") {
       size_t offset, N;
       double ke, rc, sigma, epsilon;
@@ -291,6 +315,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new PolymerFENE(offset, N, ke, rc, sigma, epsilon, world->m_bonds);
       world->m_ffields.push_back(ffield);
     }
+
+    // (7) PolymerKratkyPorod
     else if (key == "PolymerKratkyPorod") {
       size_t offset, N;
       double lp;
@@ -303,6 +329,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new PolymerKratkyPorod(offset, N, lp, world->m_bonds);
       world->m_ffields.push_back(ffield);
     }
+
+    //GEMField--------------------------------------------------------------------------------------------------------------------------------------------------------------------
     // else if (key == "GEMField") {
     //   size_t offset, N;
     //   double b;
@@ -317,6 +345,10 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     //   ffield = new GEMField(offset, N, b, kmat_fpath);
     //   world->m_ffields.push_back(ffield);
     // }
+    //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    
+    // (8) SoftCore
     else if (key == "SoftCore") {
       double A, sigma, rskin;
       size_t npair_max;
@@ -333,6 +365,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new SoftCore(A, sigma, nneighbor);
       world->m_ffields.push_back(ffield);
     }
+
+    // (9) PairLJ
     else if (key == "PairLJ") {
       double eps, sigma, rc, rskin;
       size_t npair_max;
@@ -350,6 +384,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new PairLJ(eps, sigma, rc, nneighbor);
       world->m_ffields.push_back(ffield);
     }
+
+    // (10) PolarPairLJ - IMPORTANT/ ADDED
     else if (key == "PolarPairLJ") {
       double eps, sigma, rc, rskin;
       size_t npair_max;
@@ -363,6 +399,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       rskin = FNode["rskin"].as<double>();
       npair_max = FNode["npair_max"].as<size_t>();
       nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
+      // Done?
 
       YAML::Node chain_ends = FNode["chain_ends"];
       vector<pair<size_t, size_t> > chain_ends_list;
@@ -377,6 +414,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new PolarPairLJ(eps, sigma, rc, nneighbor, chain_ends_list);
       world->m_ffields.push_back(ffield);
       throw invalid_argument("PolarPairLJ breakpoint!");
+
+      // END OF FORCEFIELDS
     }
     else {
       cout << "Unrecognized force field type: " << key << endl;
@@ -385,7 +424,9 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
   }
   return;
 }
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_constraints(YAML::Node config, MDWorld* &world) {
   /*
    * Initialize constraints
@@ -472,7 +513,9 @@ void yaml_config::init_constraints(YAML::Node config, MDWorld* &world) {
   }
   return;
 }
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_integration_params(YAML::Node config, IntegrationParams &iparams) {
   /*
    * Initialize integration parameters.
@@ -546,4 +589,5 @@ void yaml_config::init_integration_params(YAML::Node config, IntegrationParams &
 
   return;
 }
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
