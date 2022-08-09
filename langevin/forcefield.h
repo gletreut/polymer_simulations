@@ -298,6 +298,9 @@ class PairLJ : public ForceField {
     double m_sigma;               // hard-core distance
     double m_rc_LJ;               // cutoff
     NeighborList *m_neighbors;    // neighbor list
+    double m_4eps;
+    double m_fpref;
+    double m_u0;
 
     /* constructor and destructor */
     PairLJ(double eps, double sigma, double rc_LJ, NeighborList* neighbors);
@@ -308,10 +311,6 @@ class PairLJ : public ForceField {
     double force_LJ_scal(double r);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 
-  private:
-    double m_4eps;
-    double m_fpref;
-    double m_u0;
 };
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -326,7 +325,7 @@ class PolarPairLJ : public PairLJ {
   public:
     /* attributes */
     std::vector<std::pair<size_t, size_t> > m_chain_ends;
-    
+    double m_alpha;
 
     /* constructor and destructor */
     PolarPairLJ(double eps, double sigma, double rc_LJ, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
@@ -336,12 +335,7 @@ class PolarPairLJ : public PairLJ {
     double energy_LJ_scal(double r, double sigma);
     double force_LJ_scal(double r, double sigma);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-
-  // Define more methods
-  private: 
-    double m_4eps;
-    double m_fpref;
-    double m_u0;
+    
 
 
 
