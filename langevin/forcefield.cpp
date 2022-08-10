@@ -1134,9 +1134,6 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 
     //----------------------------------------------------------------------
     /* ASIDE FOR LATER
-    
-    COMMENT: I TRIED TO IMPLEMENT A ROTATION MATRIX BUT DIDN'T GET TOO FAR (AT THE MOMENT)
-    * Maybe a Matrix may not be the route, but we could use the formulas which are used to derived the matrices (I HAVE SOME POTENTIAL IDEAS)
     EXAMPLE: 
     pol_vec[0][0]=cos(phi)*cos(theta);
     pol_vec[0][1]=cos(rho)*sin(theta)+sin(rho)*sin(phi)*cos(theta);
@@ -1155,22 +1152,19 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     //*/
     //----------------------------------------------------------------------
   }
-//____________________________________________________________________________
 
   // Loop neighbors
   for (size_t i=0; i<m_neighbors->m_npair; ++i)
   {
     n = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 0);         // Represents a list of a pair of particles which are close enought to interact.
     m = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 1);         // Also represents a list of a pair of particles that can interact.
+    pn = gsl_matrix_row(pol_vec, n);                             // Sets pn equal to the nth row of pol_vec
+    pnn = gsl_matrix_row(pol_vec, m);                            // Sets pnn equal to the mth row of pol_vec
 
     gsl_vector_view xn = gsl_matrix_row(x, n);                   // xn represents the nth row of matrix x, which are the coordinates of n
     gsl_vector_view xm = gsl_matrix_row(x, m);                   // xm represents the mth row of matrix x, which are the coordinates of m
     gsl_vector_view fn = gsl_matrix_row(forces, n);              // fn represents the force exerted on particle n 
     gsl_vector_view fm = gsl_matrix_row(forces, m);              // fm represents the force exerted on particle m
-
-    pn = gsl_matrix_row(pol_vec, n);                      
-    pnn = gsl_matrix_row(pol_vec, m);   
-
 
     // COMPUTATION OF THE ACTUAL FORCE!!!  -- RETRIEVING THE POLARITY VECTOR
     gsl_vector_memcpy(xtp, &xn.vector);                          // xtp = xn since this copies the elements of vector xn to vector xtp
@@ -1184,8 +1178,6 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     function_of_ij = 0.5 * (1 + (x_of_ij/2));                    // function_of_ij Calculation
     sigma = m_sigma * (1 + (m_alpha * function_of_ij));          // FINAL CALCULATION That combines all our variables together.
 
-
-    // QUESTION: ASK GUILLAUME?
     // LJ PAIR POTENTIAL CODE LINES
     // energy
     // *u += energy_LJ_scal(r);
@@ -1204,7 +1196,4 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   return;
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 // END - CODE DONE!!!
-
-

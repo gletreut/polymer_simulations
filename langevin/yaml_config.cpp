@@ -246,6 +246,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     YAML::Node FNode;
     key = it->first.as<string>();
     FNode = it->second;
+
+    // (2) ConfinementBox
     if (key == "ConfinmentBox") {
       double sigma, epsilon;
       cout << "Adding force field of type: " << key << endl;
@@ -385,7 +387,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
 
-    // (10) PolarPairLJ - IMPORTANT/ ADDED
+    // (10) PolarPairLJ - ADDED
     else if (key == "PolarPairLJ") {
       double eps, sigma, rc, rskin;
       size_t npair_max;
@@ -399,7 +401,6 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       rskin = FNode["rskin"].as<double>();
       npair_max = FNode["npair_max"].as<size_t>();
       nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
-      // Done?
 
       YAML::Node chain_ends = FNode["chain_ends"];
       vector<pair<size_t, size_t> > chain_ends_list;
