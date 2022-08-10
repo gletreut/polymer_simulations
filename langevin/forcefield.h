@@ -30,15 +30,23 @@
 #include "linalg.h"
 #include "utils.h"
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (1) FORCEFIELD [Base Class | Parent Class]  NOTE: Other classes are inherited from the ForceField Class.
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class ForceField {
   /*
-   * Virtual class defining a force field.
+   * Virtual class defining a force field. 
    */
   public:
     virtual ~ForceField();
     virtual void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces) = 0;
 };
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (2) CLASS CONFINEMENT BOX 
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class ConfinmentBox : public ForceField {
   /*
    * Class defining a force field representing a box confinment
@@ -63,6 +71,10 @@ class ConfinmentBox : public ForceField {
     double m_rc_LJ;
 };
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (3) CLASS CONFINEMENT SPHERE
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class ConfinmentSphere : public ForceField {
   /*
    * Class defining a force field representing a spherical confinment
@@ -87,6 +99,10 @@ class ConfinmentSphere : public ForceField {
     double m_rc_LJ;
 };
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (4) CLASS POLYMER GAUSSIAN
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class PolymerGaussian : public ForceField {
   /*
    * Class defining a polymer force field.
@@ -112,6 +128,10 @@ class PolymerGaussian : public ForceField {
     double m_fpref;
 };
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (5) CLASS POLYMER HARMONIC
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class PolymerHarmonic : public ForceField {
   /*
    * Class defining a polymer force field.
@@ -138,6 +158,10 @@ class PolymerHarmonic : public ForceField {
     double m_fpref;
 };
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (6) CLASS POLYMER FENE (Finitely Extensible Nonlinear Elastic)
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class PolymerFENE : public ForceField {
   /*
    * Class defining a polymer force field.
@@ -171,6 +195,10 @@ class PolymerFENE : public ForceField {
     double m_rc_LJ;
 };
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (7) CLASS Polymer KRATKY-POROD
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class PolymerKratkyPorod : public ForceField {
   /*
    * Class defining a force field representing a polymer semi-flexibility
@@ -192,6 +220,9 @@ class PolymerKratkyPorod : public ForceField {
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 };
 
+
+
+// GEMField Class ----------------------------------------------------------------------------------------------------------------------------------------------------------
 // would need to deal with bonded interactions for the following potential (not sparse)
 // class GEMField : public ForceField {
 //   /*
@@ -221,7 +252,13 @@ class PolymerKratkyPorod : public ForceField {
 //     double m_fpref;
 //     gsl_vector *m_fa;
 // };
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (8) CLASS SOFT CORE
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class SoftCore : public ForceField {
   /*
    * Class defining a force field for soft-core excluded volume.
@@ -245,6 +282,10 @@ class SoftCore : public ForceField {
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 };
 
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (9) CLASS PAIRLJ
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class PairLJ : public ForceField {
   /*
    * Class defining a force field for Lennard-Jones pair potential
@@ -257,31 +298,34 @@ class PairLJ : public ForceField {
     double m_sigma;               // hard-core distance
     double m_rc_LJ;               // cutoff
     NeighborList *m_neighbors;    // neighbor list
+    double m_4eps;
+    double m_fpref;
+    double m_u0;
 
     /* constructor and destructor */
     PairLJ(double eps, double sigma, double rc_LJ, NeighborList* neighbors);
     ~PairLJ();
 
     /* methods */
-    double energy_LJ_scal(double r);
+    double energy_LJ_scal(double r); 
     double force_LJ_scal(double r);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 
-  private:
-    double m_4eps;
-    double m_fpref;
-    double m_u0;
 };
 
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// (10) CLASS POLARPAIRLJ
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class PolarPairLJ : public PairLJ {
   /*
-   * Class defining a force field for Lennard-Jones pair potential
+   * Class defining a force field for Lennard-Jones pair potential (Polarity Vector Included)
    *
    */
 
   public:
     /* attributes */
     std::vector<std::pair<size_t, size_t> > m_chain_ends;
+    double m_alpha;
 
     /* constructor and destructor */
     PolarPairLJ(double eps, double sigma, double rc_LJ, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
@@ -291,6 +335,9 @@ class PolarPairLJ : public PairLJ {
     double energy_LJ_scal(double r, double sigma);
     double force_LJ_scal(double r, double sigma);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+    
+
+
 
 };
 

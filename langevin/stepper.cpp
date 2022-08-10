@@ -8,6 +8,9 @@
 
 using namespace std;
 
+// Contains the Verlet Algorithm
+// Code calculates Cumulative Forces
+
 //****************************************************************************
 // MDStepper
 //****************************************************************************
