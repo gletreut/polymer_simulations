@@ -11,7 +11,7 @@ ForceField::~ForceField(){
 
 
 //****************************************************************************
-// (2) ConfinmentBox 
+// (2) ConfinmentBox
 //****************************************************************************
 ConfinmentBox::ConfinmentBox(double xlo, double xhi, double ylo, double yhi, double zlo, double zhi, double sigma, double eps) :
   m_xlo(xlo),
@@ -322,7 +322,7 @@ void PolymerGaussian::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces)
 
 
 //****************************************************************************
-// (5) PolymerHarmonic 
+// (5) PolymerHarmonic
 //****************************************************************************
 PolymerHarmonic::PolymerHarmonic(size_t offset, size_t N, double ke, double r0, gsl_spmatrix_uint *bonds) :
   m_offset(offset),
@@ -521,7 +521,7 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 
 
 //****************************************************************************
-// (7) PolymerKratkyPorod 
+// (7) PolymerKratkyPorod
 //****************************************************************************
 PolymerKratkyPorod::PolymerKratkyPorod(size_t offset, size_t N, double lp, gsl_spmatrix_uint *bonds) :
   m_offset(offset),
@@ -833,9 +833,10 @@ PairLJ::PairLJ(double eps, double sigma, double rc_LJ, NeighborList *neighbors) 
 
 {
   m_4eps = 4.0*m_eps;
-  m_fpref = 48.0*m_eps / m_sigma;
+  m_48eps = 48.0*m_eps;
+  m_fpref = m_48eps / m_sigma;
 
-  double x = m_sigma/m_rc_LJ;
+  double x = 1./m_rc_LJ;
   double x6 = x*x*x*x*x*x;
   double x12 = x6*x6;
   m_u0 = m_4eps*(x12 - x6);
@@ -852,7 +853,7 @@ double PairLJ::energy_LJ_scal(double r){
 
   double x, x6, x12;
 
-  if (fabs(r) < m_rc_LJ) {
+  if (fabs(r) < m_rc_LJ*m_sigma) {
     x = m_sigma/r;
     x6 = x*x*x*x*x*x;
     x12 = x6*x6;
@@ -870,7 +871,7 @@ double PairLJ::force_LJ_scal(double r){
    */
   double x, x6, x12;
 
-  if (fabs(r) < m_rc_LJ) {
+  if (fabs(r) < m_rc_LJ*m_sigma) {
     x = m_sigma/r;
     x6 = x*x*x*x*x*x;
     x12 = x6*x6;
@@ -930,53 +931,154 @@ void PairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 //****************************************************************************
 // (10) PolarPairLJ
 //****************************************************************************
-PolarPairLJ::PolarPairLJ(double eps, double sigma, double rc_LJ, NeighborList *neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
+PolarPairLJ::PolarPairLJ(double eps, double sigma, double rc_LJ, double alpha, NeighborList *neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
   PairLJ(eps, sigma, rc_LJ, neighbors),
   m_chain_ends(chain_ends),
-  m_alpha(1.)
+  m_alpha(alpha)
 
 {
+  // m_4eps = 4.0*m_eps;
+  // m_fpref = 48.0*m_eps / m_sigma;
+  //
+  // double x = 1./m_rc_LJ;
+  // double x6 = x*x*x*x*x*x;
+  // double x12 = x6*x6;
+  // m_u0 = m_4eps*(x12 - x6);
 }
 
 PolarPairLJ::~PolarPairLJ()
 {
 }
 
-double PolarPairLJ::energy_LJ_scal(double r, double sigma){
+double PolarPairLJ::V_LJ(double rhat){
   /*
-   * compute the energy of the  LJ interaction when the algebric
-   * distance is r.
+   * rhat = r / sigma is the dimensionless separation
    */
+  double u, u6, u12;
 
-  double x, x6, x12;
+  u = 1./rhat;
+  u6=u*u*u*u*u*u;
+  u12=u6*u6;
 
-  if (fabs(r) < m_rc_LJ) {
-    x = sigma/r;
-    x6 = x*x*x*x*x*x;
-    x12 = x6*x6;
-    return m_4eps*(x12 - x6) - m_u0;
-  }
-  else {
-    return 0.0;
-  }
+  return m_4eps*(u12 - u6);
 }
 
-double PolarPairLJ::force_LJ_scal(double r, double sigma){
+double PolarPairLJ::V_LJ_prime(double rhat){
   /*
-   * compute the algebric norm of the LJ force applied when the algebric
-   * distance is r.
+   * rhat = r / sigma is the dimensionless separation
    */
-  double x, x6, x12;
+  double u, u6, u12;
 
-  if (fabs(r) < m_rc_LJ) {
-    x = sigma/r;
-    x6 = x*x*x*x*x*x;
-    x12 = x6*x6;
-    return m_fpref*x*(x12 - 0.5*x6);
+  u = 1./rhat;
+  u6=u*u*u*u*u*u;
+  u12=u6*u6;
+
+  return -m_48eps*u*(u12 - 0.5*u6);
+}
+
+double PolarPairLJ::get_sigma(double phi, double ti, double tj){
+  double aij;
+
+  aij = -sin(phi - 0.5*(ti+tj))*sin(0.5*(tj-ti));  // in [-1,1]
+
+  return m_sigma*( 1. + m_alpha * 0.5*(1. + aij) );
+}
+
+double PolarPairLJ::get_sigma_dphi(double phi, double ti, double tj){
+  double aij_dphi;
+
+  aij_dphi = 0.5*(sin(phi-tj) - sin(phi-ti));
+
+  return m_sigma * m_alpha * 0.5 * aij_dphi;
+}
+
+double PolarPairLJ::energy_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj){
+  /*
+   * compute the energy of the interaction.
+   * INPUT:
+   *   xij = xj - xi.
+   *   ni: polarity vector i
+   *   nj: polarity vector j
+   */
+
+  double r, phi, ti, tj, sigma, rhat, rhatc, energy;
+  gsl_vector *xij(0);
+
+  xij = gsl_vector_calloc(3);
+
+  gsl_vector_memcpy(xij, xj);
+  linalg_daxpy(-1.0, xi, xij);
+  r = linalg_dnrm2(xij);
+  phi = utils::get_angle_2d(xij);
+  ti = utils::get_angle_2d(ni);
+  tj = utils::get_angle_2d(nj);
+  sigma = get_sigma(phi, ti, tj);
+
+  rhat = r / sigma;
+  rhatc = m_rc_LJ;
+
+  if (rhat < rhatc) {
+    energy =  V_LJ(rhat) - V_LJ(rhatc);
   }
   else {
-    return 0.0;
+    energy = 0.0;
   }
+
+  gsl_vector_free(xij);
+  return energy;
+}
+
+void PolarPairLJ::force_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force){
+  /*
+   * compute the force applied by i on j.
+   * INPUT:
+   *   xi: coordinates i
+   *   xj: coordinates j
+   *   ni: polarity vector i
+   *   nj: polarity vector j
+   *   force: vector.
+   */
+
+  double r, phi, ti, tj, sigma, sigma_dphi, rhat, rhatc, vx, vy, fpref;
+  gsl_vector *er(0), *ephi(0);
+
+  er = gsl_vector_calloc(3);
+  ephi = gsl_vector_calloc(3);
+
+  // compute separation, vectors
+  gsl_vector_memcpy(er, xj);
+  linalg_daxpy(-1.0, xi, er);
+  r = linalg_dnrm2(er);
+  linalg_dscal(1./r, er);
+  vx = gsl_vector_get(er, 0);
+  vy = gsl_vector_get(er, 1);
+  gsl_vector_set(ephi, 0, -vy);
+  gsl_vector_set(ephi, 1, vx);
+
+  // compute angles
+  phi = utils::get_angle_2d(er);
+  ti = utils::get_angle_2d(ni);
+  tj = utils::get_angle_2d(nj);
+
+  // construct er, ephi vectors
+  // compute sigma, sigma derivative to phi
+  sigma = get_sigma(phi, ti, tj);
+  sigma_dphi = get_sigma_dphi(phi, ti, tj);
+
+  // other variables
+  rhat = r / sigma;
+  rhatc = m_rc_LJ; // * sigma / sigma
+  fpref = -V_LJ_prime(rhat) / sigma;
+
+  if (rhat < rhatc) {
+    gsl_vector_memcpy(force, er);
+    linalg_daxpy(-sigma_dphi/sigma, ephi, force);
+    linalg_dscal(fpref, force);
+  }
+
+  gsl_vector_free(er);
+  gsl_vector_free(ephi);
+  return;
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -985,14 +1087,14 @@ double PolarPairLJ::force_LJ_scal(double r, double sigma){
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 UNDERSTAND THIS FUNCTION (VERY IMPORTANT)
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-DESCRIPTION: 
+DESCRIPTION:
 1.) Function defines and initializes all variables.
 2.) Enters a nested for loop that will iterate through the interior beads and then the endpoints. This is to calculate the polarity vector in every bead of the chain/polymer.
-2a.) ADD A ROTATION MATRIX 
+2a.) ADD A ROTATION MATRIX
 3.) Enter another for loop (not nested) that will assign pair neighbors, compute the actual force, and retrieve the polarity vector.
 
 NOTES:
-This function has coordinates stored in a matrix x which will contain the coordinates of our beads in this model. 
+This function has coordinates stored in a matrix x which will contain the coordinates of our beads in this model.
 The forces of the function are stored in the forces matrix
 The pol_vec is stored in a matrix (contains the polairity vector)
 The xtp is stored in a vector (constantly updates to allow us ot attain our desired vectors and vector computations)
@@ -1002,22 +1104,22 @@ The xtp is stored in a vector (constantly updates to allow us ot attain our desi
 // Function of a Cass - defined outside the class using the scope resolution operator (::)
 // This function contains the energy_force void funciton that was defined inside the PolarPairLJ Class and is now being defined here.
 // energy_force contains and defines (through (*) pointers or dereference operators that can be read as "value pointed to by"
-// Here: x is a Matirx, forces is a Matirx, and u is a double variable. 
+// Here: x is a Matirx, forces is a Matirx, and u is a double variable.
 void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   /*
-   * PRIOR OBJECTIVE: Compute the potential energy and force (minus gradient) produced by pair Lennard-Jones interactions. 
+   * PRIOR OBJECTIVE: Compute the potential energy and force (minus gradient) produced by pair Lennard-Jones interactions.
    */
 
-  // Defines: Base unsigned integer types 
-  // 1.) represents the size of any object in bytes 
-  // 2.) used for array (and vector) indexing and counting 
+  // Defines: Base unsigned integer types
+  // 1.) represents the size of any object in bytes
+  // 2.) used for array (and vector) indexing and counting
   size_t n, m;
 
-  // Defines: double variables that will be used for our calculations.  
-  double fnorm, r, sigma, xsubi, xsubj, x_of_ij, function_of_ij;
+  // Defines: double variables that will be used for our calculations.
+  double fnorm, r, xsubi, xsubj, x_of_ij, function_of_ij;
 
   // xtp (vector) and pol_vec (matrix) defined
-  gsl_vector *xtp(0);
+  gsl_vector *xtp(0), *ftp(0);
   gsl_matrix *pol_vec(0);
 
   gsl_vector_view pn;                                         // pn = m sub (0) = m (istart)          or  // pn = m sub (N) (iend)
@@ -1034,124 +1136,137 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   fnorm = 0.;
 
   // xtp is initialized as a vector of length 3 (3-Dimensional) and all elements are set equal to 0.
-  xtp = gsl_vector_calloc(3); 
+  xtp = gsl_vector_calloc(3);
+  ftp = gsl_vector_calloc(3);
 
   // pol_vec [mathematically represented by m sub i (regular vector) or m sub i HAT (unit/normalized)] will be a matrix with size1 rows from x and 3 columns (in R^3 or 3D)
   // NOTE: -> sign indicates that the values held by x will be given to size1, which is the number of rows
   pol_vec = gsl_matrix_calloc(x->size1, 3);
-
+  double freq = 2.*3.14158/9.;
+  for (size_t n=0; n<pol_vec->size1; n++){
+    double ux = cos(n*freq);
+    double uy = sin(n*freq);
+    gsl_matrix_set(pol_vec, n, 0, ux);
+    gsl_matrix_set(pol_vec, n, 1, uy);
+  }
 
 
   // NESTED for loop ___________________________________________________________________________________________________________________________________________________
-  // Establishes and calculates [istart] and [iend]
-  for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it) 
-  {
-    size_t istart = it->first;                                  // istart assigned to iterator it that points to first (beginning of chain)
-    size_t iend = it->second;                                   // iend assigned to iterator it that points to second (end of chain)
+  // Establishes and calculates polarity vector
+  // for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
+  // {
+  //   size_t istart = it->first;                                  // istart assigned to iterator it that points to first (beginning of chain)
+  //   size_t iend = it->second;                                   // iend assigned to iterator it that points to second (end of chain)
+  //
+  //
+  //   // SECOND for loop only calculates the INTERIOR BEADS ([istart + 1] to [iend - 1])
+  //   for (size_t i = istart + 1; i < iend; i++)
+  //   {
+  //     // Row Vectors
+  //     gsl_vector_view x0 = gsl_matrix_row(x, i-1);              // Sets x0 = r sub (i-1) -- means that x0 represents the (i-1)th row of matrix x
+  //     gsl_vector_view x1 = gsl_matrix_row(x, i);                // Sets x1 = r sub (i)   -- means that x1 represents the (i)th row of matrix x
+  //     gsl_vector_view x2 = gsl_matrix_row(x, i+1);              // Sets x2 = r sub (i+1) -- means that x2 represents the (i+1)th row of matrix x
+  //
+  //     gsl_vector_set_all(xtp,0);                                // Initiates xtp to 0 in R^3                                ; xtp = 0
+  //     linalg_daxpy(0.5, &x0.vector, xtp);                       // (1/2)x0 + xtp = (1/2)(r sub (i-1))                       ; xtp = (1/2)(r sub (i-1))
+  //     linalg_daxpy(0.5, &x2.vector, xtp);                       // (1/2)x2 + xtp = (1/2)(r sub (i+1)) + (1/2)(r sub (i-1))  ; xtp = (1/2)(r sub (i+1)) + (1/2)(r sub (i-1)) = ((r sub (i+1) + r sub (i-1))/2)
+  //
+  //     pn = gsl_matrix_row(pol_vec,i);                           // Sets pn = m sub(i) from pol_vec matrix
+  //     gsl_vector_memcpy(&pn.vector, &x1.vector);                // m sub (i) = r sub (i) since this copies the elements of vector x1 (contained r sub (i)) to vector pn
+  //     linalg_daxpy(-1,xtp,&pn.vector);                          // m sub (i) (vecotr pn) = r sub (i) - xtp =  r sub (i) - ((r sub (i+1) + r sub (i-1))/2)
+  //     double pn_norm = linalg_dnrm2(&pn.vector);                // pn_norm = magnitude of m sub (i) = || m sub (i) || = || r sub (i) - ((r sub (i+1) + r sub (i-1))/2) ||
+  //     linalg_dscal((1/pn_norm), &pn.vector);                    // (1 / || m sub (i) ||) * (m sub (i))     --> THIS WOULD BE EQUAL TO [m sub (i) HAT] FOR THE INTERIOR BEADS.
+  //   }
+  //
+  //   // ENDPOINT (ENDBEAD) CALCULATIONS__________________________________________________________________________________________________________________________________
+  //   // CASE 1: START/FIRST BEAD [istart]
+  //   pn = gsl_matrix_row(pol_vec, istart);                       // Sets pn = row (istart) = m sub (0) from pol_vec matrix
+  //   pnn = gsl_matrix_row(pol_vec, istart+1);                    // Sets pnn = row (istart + 1) = m sub (1) from pol_vec matrix
+  //
+  //   // Row Vectors
+  //   gsl_vector_view xstart = gsl_matrix_row(x, istart);         // Sets xstart = r sub (0) -- means that xstart represents the (istart or 0)th row of matrix x (1st row of the matrix)
+  //   gsl_vector_view x1 = gsl_matrix_row(x, istart+1);           // Sets x1 = r sub (1) -- means that x1 represents the (istart + 1)th or row of matrix x (2nd row of the matrix)
+  //   // QUESTION: IS x1 APPROPRIATE HERE, I THINK IT MAY NOT BE THE BEST VECTOR NAME BECAUSE IT WAS ALSO USED IN INTERIOR BEADS?
+  //
+  //   // QUESTION: DO I NEED TO RESET xtp = 0 EVERY TIME I NEED TO USE IT AGAIN?
+  //   gsl_vector_set_all(xtp,0);                                  // xtp = 0
+  //   linalg_daxpy(1, &x1.vector, xtp);                           // xtp = x1 = r sub (1)                                      ; xtp = r sub (1) = r sub (istart + 1) since istart = 0
+  //   linalg_daxpy(-1, &xstart.vector, xtp);                      // xtp = r sub (1) - xstart = r sub (1) - r sub (0)          ; xtp = r sub (1) - r sub (0) = r sub (istart + 1) - r sub (istart)
+  //                                                               // xtp is imaginarily defined as U sub (1) in the next 2 lines of code in order to mathematically understand what is happening
+  //   double xtp_normStart = linalg_dnrm2(xtp);                   // xtp_normStart = || U sub (1) || = || r sub (1) - r sub (0) ||
+  //   linalg_dscal((1/xtp_normStart), xtp);                       // (1 / || U sub (1) ||) * (U sub (1)) --> THIS WOULD BE EQUAL TO [U sub (1) HAT] FOR THE START BEAD.
+  //
+  //   // QUESTION: DOES THIS MEAN THAT THE THIRD ENTRY WILL BE ZERO FOR ALL?
+  //   // We have vector ( a )  in R^2 (2D) with positions ( 0 )
+  //   //                ( b )                             ( 1 )
+  //   //               ( ZERO )                          ( ZERO )
+  //   double ux = gsl_vector_get(xtp,0);                          // a = (ux) for coordinate position (0)
+  //   double uy = gsl_vector_get(xtp,1);                          // b = (uy) for coordinate position (1)
+  //   gsl_vector_set(&pn.vector,0,-uy);                           // For pn.vector (m sub 0), position (0) becomes (-uy)
+  //   gsl_vector_set(&pn.vector,1,ux);                            //   "   "   "              position (1) becomes (ux)
+  //   double s = linalg_ddot(&pn.vector, &pnn.vector);            // Value (s) = Dot product of (pn.vector) and (pnn.vector) = Dot product of m sub (0) and m sub (1)
+  //   int sgn = (s==0.)?1:int(s/fabs(s));                         // Value sgn = s/fabs(s) --> int sgn = (s==0.)?1:int(s/fabs(s));  Deals with the exception s==0
+  //                                                               // ^ Format of Operator is [ variable = (condition) ? Expression2 : Expression3 ]
+  //   double pn_norm = linalg_dnrm2(&pn.vector);                  // Number (pn_norm) = Magnitude of (pn.vector) = ||pn.vector||
+  //   linalg_dscal(sgn/pn_norm, &pn.vector);                      // Normalized Vector/ Unit Vector of [[m sub (0) HAT]] FOR THE START BEAD
+  //
+  //   // CASE 2: END/LAST BEAD [iend]
+  //   pn = gsl_matrix_row(pol_vec, iend);                         // pn = Vector m sub (N)
+  //   pnn = gsl_matrix_row(pol_vec, iend-1);                      // pnn = Vector m sub (N-1)
+  //
+  //   // Row Vectors
+  //   gsl_vector_view xend = gsl_matrix_row(x, iend);             // Sets xend = r sub (N) -- means that xend represents the (iend or N)th row of matrix x (last row of the matrix)
+  //   gsl_vector_view xpenultimate = gsl_matrix_row(x, iend - 1); // Sets xpenultimate = r sub (N-1) -- means that xpenultimate represents the (iend - 1 or N - 1)th row of matrix x (2nd last row of the matrix)
+  //
+  //   // QUESTION: ABOUT xtp = 0 RESET AGAIN?
+  //   gsl_vector_set_all(xtp,0);                                  // xtp = (0,0,0)
+  //   linalg_daxpy(1, &xend.vector, xtp);                         // xtp = xend = r sub (N)                                       ; xtp = r sub (N)
+  //   linalg_daxpy(-1, &xpenultimate.vector, xtp);                // xtp = r sub (N) - xpenultimate = r sub (N) - r sub (N - 1)   ; xtp = r sub (N) - r sub (N - 1)
+  //                                                               // xtp is imaginarily defined as U sub (N) in the next 2 lines of code in order to mathematically understand what is happening
+  //   double xtp_normEnd = linalg_dnrm2(xtp);                     // || U sub (N) || = || r sub (N) - r sub (N - 1) ||
+  //   linalg_dscal((1/xtp_normEnd), xtp);                         // (1 / || U sub (N) ||) * (U sub (N)) --> THIS WOULD BE EQUAL to [U sub (N) HAT] FOR THE END BEAD.
+  //
+  //   // QUESTION: DOES THIS MEAN THAT THE THIRD ENTRY WILL BE ZERO FOR ALL?
+  //   // We have vector ( a )  in R^2 (2D) with positions ( 0 )
+  //   //                ( b )                             ( 1 )
+  //   //               ( ZERO )                          ( ZERO )
+  //
+  //   // N added to represent variables associated with END/LAST BEAD
+  //   double uNx = gsl_vector_get(xtp,0);                         // a = (uNx) for coordinate position (0)
+  //   double uNy = gsl_vector_get(xtp,1);                         // b = (uNy) for coordinate position (1)
+  //   gsl_vector_set(&pn.vector,0,-uNy);                          // For pn.vector (m sub (N), position (0) becomes (-uNy)
+  //   gsl_vector_set(&pn.vector,1,uNx);                           //   "   "   "               position (1) becomes (uNx)
+  //   double t = linalg_ddot(&pn.vector, &pnn.vector);            // Value (t) = Dot product of (pn.vector) and (pnn.vector) = Dot product of m sub (N) and m sub (N - 1)
+  //   int tgn = (t==0.)?1:int(t/fabs(t));                         // Value (tgn) = t/fabs(t); Deals with the exception t==0
+  //   double pN_norm = linalg_dnrm2(&pn.vector);                  // Number (pN_norm) = Magnitude of (pn.vector) = ||pn.vector||
+  //   linalg_dscal(tgn/pN_norm, &pn.vector);                      // Normailized Vector/ Unit Vector of [[m sub (N) HAT]] FOR THE END BEAD
+  //
+  //   //----------------------------------------------------------------------
+  //   /* ASIDE FOR LATER
+  //   EXAMPLE:
+  //   pol_vec[0][0]=cos(phi)*cos(theta);
+  //   pol_vec[0][1]=cos(rho)*sin(theta)+sin(rho)*sin(phi)*cos(theta);
+  //   pol_vec[0][2]=sin(rho)*sin(theta)-cos(rho)*sin(phi)*cos(theta);
+  //
+  //   Rotation Matrix
+  //   m sub (0)[0] = -u sub (1) [1]
+  //   m sub (0)[1] = u sub (1) [1]
+  //   m sub (0)[2] = 0
+  //   or
+  //   rotate() function // the reverse order
+  //   or
+  //   std::rotate(ObjectToRotate.begin(),
+  //     ObjectToRotate.end()-1, // the reverse order
+  //     ObjectToRotate.end());
+  //   //*/
+  //   //----------------------------------------------------------------------
+  // }
 
-
-    // SECOND for loop only calculates the INTERIOR BEADS ([istart + 1] to [iend - 1])
-    for (size_t i = istart + 1; i < iend; i++)
-    {
-      // Row Vectors
-      gsl_vector_view x0 = gsl_matrix_row(x, i-1);              // Sets x0 = r sub (i-1) -- means that x0 represents the (i-1)th row of matrix x
-      gsl_vector_view x1 = gsl_matrix_row(x, i);                // Sets x1 = r sub (i)   -- means that x1 represents the (i)th row of matrix x
-      gsl_vector_view x2 = gsl_matrix_row(x, i+1);              // Sets x2 = r sub (i+1) -- means that x2 represents the (i+1)th row of matrix x
-
-      gsl_vector_set_all(xtp,0);                                // Initiates xtp to 0 in R^3                                ; xtp = 0
-      linalg_daxpy(0.5, &x0.vector, xtp);                       // (1/2)x0 + xtp = (1/2)(r sub (i-1))                       ; xtp = (1/2)(r sub (i-1))
-      linalg_daxpy(0.5, &x2.vector, xtp);                       // (1/2)x2 + xtp = (1/2)(r sub (i+1)) + (1/2)(r sub (i-1))  ; xtp = (1/2)(r sub (i+1)) + (1/2)(r sub (i-1)) = ((r sub (i+1) + r sub (i-1))/2)
-
-      pn = gsl_matrix_row(pol_vec,i);                           // Sets pn = m sub(i) from pol_vec matrix
-      gsl_vector_memcpy(&pn.vector, &x1.vector);                // m sub (i) = r sub (i) since this copies the elements of vector x1 (contained r sub (i)) to vector pn
-      linalg_daxpy(-1,xtp,&pn.vector);                          // m sub (i) (vecotr pn) = r sub (i) - xtp =  r sub (i) - ((r sub (i+1) + r sub (i-1))/2)
-      double pn_norm = linalg_dnrm2(&pn.vector);                // pn_norm = magnitude of m sub (i) = || m sub (i) || = || r sub (i) - ((r sub (i+1) + r sub (i-1))/2) ||
-      linalg_dscal((1/pn_norm), &pn.vector);                    // (1 / || m sub (i) ||) * (m sub (i))     --> THIS WOULD BE EQUAL TO [m sub (i) HAT] FOR THE INTERIOR BEADS.
-    }
-
-    // ENDPOINT (ENDBEAD) CALCULATIONS__________________________________________________________________________________________________________________________________
-    // CASE 1: START/FIRST BEAD [istart]
-    pn = gsl_matrix_row(pol_vec, istart);                       // Sets pn = row (istart) = m sub (0) from pol_vec matrix
-    pnn = gsl_matrix_row(pol_vec, istart+1);                    // Sets pnn = row (istart + 1) = m sub (1) from pol_vec matrix
-
-    // Row Vectors
-    gsl_vector_view xstart = gsl_matrix_row(x, istart);         // Sets xstart = r sub (0) -- means that xstart represents the (istart or 0)th row of matrix x (1st row of the matrix)
-    gsl_vector_view x1 = gsl_matrix_row(x, istart+1);           // Sets x1 = r sub (1) -- means that x1 represents the (istart + 1)th or row of matrix x (2nd row of the matrix)
-    // QUESTION: IS x1 APPROPRIATE HERE, I THINK IT MAY NOT BE THE BEST VECTOR NAME BECAUSE IT WAS ALSO USED IN INTERIOR BEADS?
-
-    // QUESTION: DO I NEED TO RESET xtp = 0 EVERY TIME I NEED TO USE IT AGAIN?
-    gsl_vector_set_all(xtp,0);                                  // xtp = 0
-    linalg_daxpy(1, &x1.vector, xtp);                           // xtp = x1 = r sub (1)                                      ; xtp = r sub (1) = r sub (istart + 1) since istart = 0
-    linalg_daxpy(-1, &xstart.vector, xtp);                      // xtp = r sub (1) - xstart = r sub (1) - r sub (0)          ; xtp = r sub (1) - r sub (0) = r sub (istart + 1) - r sub (istart)
-                                                                // xtp is imaginarily defined as U sub (1) in the next 2 lines of code in order to mathematically understand what is happening
-    double xtp_normStart = linalg_dnrm2(xtp);                   // xtp_normStart = || U sub (1) || = || r sub (1) - r sub (0) ||
-    linalg_dscal((1/xtp_normStart), xtp);                       // (1 / || U sub (1) ||) * (U sub (1)) --> THIS WOULD BE EQUAL TO [U sub (1) HAT] FOR THE START BEAD.
-
-    // QUESTION: DOES THIS MEAN THAT THE THIRD ENTRY WILL BE ZERO FOR ALL?
-    // We have vector ( a )  in R^2 (2D) with positions ( 0 )
-    //                ( b )                             ( 1 )
-    //               ( ZERO )                          ( ZERO )
-    double ux = gsl_vector_get(xtp,0);                          // a = (ux) for coordinate position (0)  
-    double uy = gsl_vector_get(xtp,1);                          // b = (uy) for coordinate position (1)
-    gsl_vector_set(&pn.vector,0,-uy);                           // For pn.vector (m sub 0), position (0) becomes (-uy) 
-    gsl_vector_set(&pn.vector,1,ux);                            //   "   "   "              position (1) becomes (ux)    
-    double s = linalg_ddot(&pn.vector, &pnn.vector);            // Value (s) = Dot product of (pn.vector) and (pnn.vector) = Dot product of m sub (0) and m sub (1)
-    int sgn = (s==0.)?1:int(s/fabs(s));                         // Value sgn = s/fabs(s) --> int sgn = (s==0.)?1:int(s/fabs(s));  Deals with the exception s==0
-                                                                // ^ Format of Operator is [ variable = (condition) ? Expression2 : Expression3 ]
-    double pn_norm = linalg_dnrm2(&pn.vector);                  // Number (pn_norm) = Magnitude of (pn.vector) = ||pn.vector|| 
-    linalg_dscal(sgn/pn_norm, &pn.vector);                      // Normalized Vector/ Unit Vector of [[m sub (0) HAT]] FOR THE START BEAD
-                                                                
-    // CASE 2: END/LAST BEAD [iend]
-    pn = gsl_matrix_row(pol_vec, iend);                         // pn = Vector m sub (N)
-    pnn = gsl_matrix_row(pol_vec, iend-1);                      // pnn = Vector m sub (N-1)
-
-    // Row Vectors 
-    gsl_vector_view xend = gsl_matrix_row(x, iend);             // Sets xend = r sub (N) -- means that xend represents the (iend or N)th row of matrix x (last row of the matrix)
-    gsl_vector_view xpenultimate = gsl_matrix_row(x, iend - 1); // Sets xpenultimate = r sub (N-1) -- means that xpenultimate represents the (iend - 1 or N - 1)th row of matrix x (2nd last row of the matrix)
-
-    // QUESTION: ABOUT xtp = 0 RESET AGAIN?
-    gsl_vector_set_all(xtp,0);                                  // xtp = (0,0,0)
-    linalg_daxpy(1, &xend.vector, xtp);                         // xtp = xend = r sub (N)                                       ; xtp = r sub (N) 
-    linalg_daxpy(-1, &xpenultimate.vector, xtp);                // xtp = r sub (N) - xpenultimate = r sub (N) - r sub (N - 1)   ; xtp = r sub (N) - r sub (N - 1)
-                                                                // xtp is imaginarily defined as U sub (N) in the next 2 lines of code in order to mathematically understand what is happening
-    double xtp_normEnd = linalg_dnrm2(xtp);                     // || U sub (N) || = || r sub (N) - r sub (N - 1) ||
-    linalg_dscal((1/xtp_normEnd), xtp);                         // (1 / || U sub (N) ||) * (U sub (N)) --> THIS WOULD BE EQUAL to [U sub (N) HAT] FOR THE END BEAD.
-
-    // QUESTION: DOES THIS MEAN THAT THE THIRD ENTRY WILL BE ZERO FOR ALL?
-    // We have vector ( a )  in R^2 (2D) with positions ( 0 )
-    //                ( b )                             ( 1 ) 
-    //               ( ZERO )                          ( ZERO )
-
-    // N added to represent variables associated with END/LAST BEAD 
-    double uNx = gsl_vector_get(xtp,0);                         // a = (uNx) for coordinate position (0)  
-    double uNy = gsl_vector_get(xtp,1);                         // b = (uNy) for coordinate position (1)
-    gsl_vector_set(&pn.vector,0,-uNy);                          // For pn.vector (m sub (N), position (0) becomes (-uNy) 
-    gsl_vector_set(&pn.vector,1,uNx);                           //   "   "   "               position (1) becomes (uNx)     
-    double t = linalg_ddot(&pn.vector, &pnn.vector);            // Value (t) = Dot product of (pn.vector) and (pnn.vector) = Dot product of m sub (N) and m sub (N - 1)
-    int tgn = (t==0.)?1:int(t/fabs(t));                         // Value (tgn) = t/fabs(t); Deals with the exception t==0
-    double pN_norm = linalg_dnrm2(&pn.vector);                  // Number (pN_norm) = Magnitude of (pn.vector) = ||pn.vector|| 
-    linalg_dscal(tgn/pN_norm, &pn.vector);                      // Normailized Vector/ Unit Vector of [[m sub (N) HAT]] FOR THE END BEAD
-
-    //----------------------------------------------------------------------
-    /* ASIDE FOR LATER
-    EXAMPLE: 
-    pol_vec[0][0]=cos(phi)*cos(theta);
-    pol_vec[0][1]=cos(rho)*sin(theta)+sin(rho)*sin(phi)*cos(theta);
-    pol_vec[0][2]=sin(rho)*sin(theta)-cos(rho)*sin(phi)*cos(theta);
-
-    Rotation Matrix 
-    m sub (0)[0] = -u sub (1) [1]
-    m sub (0)[1] = u sub (1) [1]
-    m sub (0)[2] = 0
-    or 
-    rotate() function // the reverse order
-    or 
-    std::rotate(ObjectToRotate.begin(),
-      ObjectToRotate.end()-1, // the reverse order
-      ObjectToRotate.end());
-    //*/
-    //----------------------------------------------------------------------
-  }
+  // TEST
+  ofstream ftest;
+  ftest.open("test.dat", ofstream::app);
+  ftest << scientific << setprecision(8) << left;
+  // TEST
 
   // Loop neighbors
   for (size_t i=0; i<m_neighbors->m_npair; ++i)
@@ -1163,35 +1278,79 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 
     gsl_vector_view xn = gsl_matrix_row(x, n);                   // xn represents the nth row of matrix x, which are the coordinates of n
     gsl_vector_view xm = gsl_matrix_row(x, m);                   // xm represents the mth row of matrix x, which are the coordinates of m
-    gsl_vector_view fn = gsl_matrix_row(forces, n);              // fn represents the force exerted on particle n 
+    gsl_vector_view fn = gsl_matrix_row(forces, n);              // fn represents the force exerted on particle n
     gsl_vector_view fm = gsl_matrix_row(forces, m);              // fm represents the force exerted on particle m
 
-    // COMPUTATION OF THE ACTUAL FORCE!!!  -- RETRIEVING THE POLARITY VECTOR
-    gsl_vector_memcpy(xtp, &xn.vector);                          // xtp = xn since this copies the elements of vector xn to vector xtp
-    linalg_daxpy(-1., &xm.vector, xtp);                          // xtp = vector xn - vector xm
-                                                                 // xtp = r sub (ij) = r sub(j) - r sub (i) [or = r sub (nm) = r sub (n) - r sub (m)
-    r = linalg_dnrm2(xtp);                                       // Sets r = Magnitude of (xtp) = || xtp || = || xn - xm || --> ALSO: || r sub (ij) ||
-    linalg_dscal(1/r,xtp);                                       // 1/ r * xtp  = (1/ ||r||) * xtp --> THIS WOULD BE EQUAL TO r sub (ij) HAT
-    xsubi = linalg_ddot(&pn.vector,xtp);                         // x sub (i) = Dot Product of m sub (i) and r sub (ij) (AKA xtp)
-    xsubj = linalg_ddot(&pnn.vector,xtp);                        // x sub (j) = Dot Product of m sub (j) and r sub (ij) (AKA xtp)
-    x_of_ij = xsubj - xsubi;                                     // Simple calculation to simplify function_of_ij calculation
-    function_of_ij = 0.5 * (1 + (x_of_ij/2));                    // function_of_ij Calculation
-    sigma = m_sigma * (1 + (m_alpha * function_of_ij));          // FINAL CALCULATION That combines all our variables together.
+
+    // // COMPUTATION OF THE ACTUAL FORCE!!!  -- RETRIEVING THE POLARITY VECTOR
+    // gsl_vector_memcpy(xtp, &xn.vector);                          // xtp = xn since this copies the elements of vector xn to vector xtp
+    // linalg_daxpy(-1., &xm.vector, xtp);                          // xtp = vector xn - vector xm
+    //                                                              // xtp = r sub (ij) = r sub(j) - r sub (i) [or = r sub (nm) = r sub (n) - r sub (m)
+    // r = linalg_dnrm2(xtp);                                       // Sets r = Magnitude of (xtp) = || xtp || = || xn - xm || --> ALSO: || r sub (ij) ||
+    // linalg_dscal(1/r,xtp);                                       // 1/ r * xtp  = (1/ ||r||) * xtp --> THIS WOULD BE EQUAL TO r sub (ij) HAT
+    // xsubi = -linalg_ddot(&pn.vector,xtp);                         // x sub (i) = Dot Product of m sub (i) and r sub (ij) (AKA xtp)
+    // xsubj = -linalg_ddot(&pnn.vector,xtp);                        // x sub (j) = Dot Product of m sub (j) and r sub (ij) (AKA xtp)
+    // x_of_ij = xsubi - xsubj;                                     // Simple calculation to simplify function_of_ij calculation
+    // function_of_ij = 0.5 * (1 + (x_of_ij/2));                    // function_of_ij Calculation
+    // sigma = m_sigma * (1 + (m_alpha * function_of_ij));          // FINAL CALCULATION That combines all our variables together.
 
     // LJ PAIR POTENTIAL CODE LINES
     // energy
-    // *u += energy_LJ_scal(r);
-    *u += energy_LJ_scal(r, sigma);
+    // *u += energy_LJ_scal(r, sigma);
+    double utp = energy_LJ_scal(&xn.vector, &xm.vector, &pn.vector, &pnn.vector);
+    *u += utp;
+
     // force
-    // fnorm = force_LJ_scal(r);
-    fnorm = force_LJ_scal(r, sigma);
-    linalg_daxpy(fnorm/r, xtp, &fn.vector);
-    linalg_daxpy(-fnorm/r, xtp, &fm.vector);
+    // fnorm = force_LJ_scal(r, sigma);
+    // linalg_daxpy(fnorm/r, xtp, &fn.vector);
+    // linalg_daxpy(-fnorm/r, xtp, &fm.vector);
+
+    gsl_vector_set_all(ftp,0.0);
+    force_LJ_scal(&xn.vector, &xm.vector, &pn.vector, &pnn.vector, ftp);
+    linalg_daxpy(-1.0, ftp, &fn.vector);
+    linalg_daxpy(1.0, ftp, &fm.vector);
+
+    //* TEST
+    gsl_vector_memcpy(xtp, &xm.vector);
+    linalg_daxpy(-1.0, &xn.vector, xtp);
+    r = linalg_dnrm2(xtp);
+    double phi_tp = utils::get_angle_2d(xtp);
+    double ti_tp = utils::get_angle_2d(&pn.vector);
+    double tj_tp = utils::get_angle_2d(&pnn.vector);
+    double sigma = get_sigma(phi_tp, ti_tp, tj_tp);
+    fnorm = linalg_dnrm2(ftp);
+    if (fabs(fnorm) > 1.0e-10){
+      ftest << setw(18) << n;
+      ftest << setw(18) << m;
+      ftest << setw(18) << gsl_vector_get(&xn.vector, 0);
+      ftest << setw(18) << gsl_vector_get(&xn.vector, 1);
+      ftest << setw(18) << gsl_vector_get(&xm.vector, 0);
+      ftest << setw(18) << gsl_vector_get(&xm.vector, 1);
+      ftest << setw(18) << gsl_vector_get(&pn.vector, 0);
+      ftest << setw(18) << gsl_vector_get(&pn.vector, 1);
+      ftest << setw(18) << gsl_vector_get(&pnn.vector, 0);
+      ftest << setw(18) << gsl_vector_get(&pnn.vector, 1);
+      ftest << setw(18) << gsl_vector_get(ftp, 0);
+      ftest << setw(18) << gsl_vector_get(ftp, 1);
+      ftest << setw(18) << gsl_vector_get(ftp, 2);
+      ftest << setw(18) << utp;
+      ftest << setw(18) << sigma;
+      ftest << setw(18) << r;
+      ftest << setw(18) << fnorm;
+      ftest << endl;
+    }
+    // TEST //*/
   }
+
+  // TEST
+  ftest.close();
+  // TEST
+
 
   /* exit */
   // These commands will free the previously allocated vector (xtp) and matrix (pol_vec).
   gsl_vector_free(xtp);
+  gsl_vector_free(ftp);
   gsl_matrix_free(pol_vec);
   return;
 }

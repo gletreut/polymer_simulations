@@ -21,6 +21,9 @@
 #include <gsl/gsl_matrix.h>
 #include <yaml-cpp/yaml.h>
 
+// other libraries
+#include "linalg.h"
+
 // utils
 namespace utils {
 	std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
@@ -41,6 +44,8 @@ namespace utils {
   void print_vector(std::ostream &mystream, gsl_vector *v);
   void print_matrix(std::ostream &mystream, gsl_matrix *m);
   void load_matrix(std::istream &mystream, gsl_matrix *m);
+
+  double get_angle_2d(const gsl_vector *v);
 };
 
 // include template definitions

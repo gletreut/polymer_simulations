@@ -78,6 +78,25 @@ void utils::load_matrix(istream &mystream, gsl_matrix *m){
   return;
 }
 
+double utils::get_angle_2d(const gsl_vector *v){
+  /*
+   * Return the angle of the vector with e_x between -Pi and +Pi.
+   * */
+  double vx, vy, vnorm, theta;
+
+  vx = gsl_vector_get(v, 0);
+  vy = gsl_vector_get(v, 1);
+  vnorm = sqrt(vx*vx + vy*vy);
+
+  theta = acos(vx/vnorm);
+
+  if (vy < 0.) {
+    theta *= -1.;
+  }
+
+  return theta;
+}
+
 //template <typename T>
 //struct VectorSorter {
 //	vector<T> &myvec;

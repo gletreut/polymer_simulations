@@ -69,6 +69,13 @@ int main(int argc, char *argv[]){
   bool nlist_updated=false;
   size_t iter=0;
 
+  // TEST
+  ofstream ftest;
+  ftest.open("test.dat", ofstream::out);
+  ftest << "";
+  ftest.close();
+  // TEST
+
 //-----------------------------------------------
 //** INITIALIZATION
 //-----------------------------------------------

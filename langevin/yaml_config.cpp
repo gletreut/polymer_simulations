@@ -348,8 +348,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     //   world->m_ffields.push_back(ffield);
     // }
     //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    
+
+
     // (8) SoftCore
     else if (key == "SoftCore") {
       double A, sigma, rskin;
@@ -389,7 +389,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
 
     // (10) PolarPairLJ - ADDED
     else if (key == "PolarPairLJ") {
-      double eps, sigma, rc, rskin;
+      double eps, sigma, rc, rskin, alpha;
       size_t npair_max;
       NeighborList *nneighbor(0);
       cout << "Adding force field of type: " << key << endl;
@@ -397,6 +397,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       cout << FNode << endl;
       eps = FNode["eps"].as<double>();
       sigma = FNode["sigma"].as<double>();
+      alpha = FNode["alpha"].as<double>();
       rc = FNode["rc"].as<double>();
       rskin = FNode["rskin"].as<double>();
       npair_max = FNode["npair_max"].as<size_t>();
@@ -412,10 +413,8 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       }
 
       world->m_neighbors.push_back(nneighbor);
-      ffield = new PolarPairLJ(eps, sigma, rc, nneighbor, chain_ends_list);
+      ffield = new PolarPairLJ(eps, sigma, rc, alpha, nneighbor, chain_ends_list);
       world->m_ffields.push_back(ffield);
-      throw invalid_argument("PolarPairLJ breakpoint!");
-
       // END OF FORCEFIELDS
     }
     else {

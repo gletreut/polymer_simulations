@@ -123,6 +123,7 @@ void MDWorld::clear() {
 
   return;
 }
+
 void MDWorld::init_positions_lattice(double delta){
   /*
    * Initialize positions on a lattice.

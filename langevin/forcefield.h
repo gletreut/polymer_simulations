@@ -36,7 +36,7 @@
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class ForceField {
   /*
-   * Virtual class defining a force field. 
+   * Virtual class defining a force field.
    */
   public:
     virtual ~ForceField();
@@ -45,7 +45,7 @@ class ForceField {
 
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// (2) CLASS CONFINEMENT BOX 
+// (2) CLASS CONFINEMENT BOX
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class ConfinmentBox : public ForceField {
   /*
@@ -299,6 +299,7 @@ class PairLJ : public ForceField {
     double m_rc_LJ;               // cutoff
     NeighborList *m_neighbors;    // neighbor list
     double m_4eps;
+    double m_48eps;
     double m_fpref;
     double m_u0;
 
@@ -307,7 +308,7 @@ class PairLJ : public ForceField {
     ~PairLJ();
 
     /* methods */
-    double energy_LJ_scal(double r); 
+    double energy_LJ_scal(double r);
     double force_LJ_scal(double r);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 
@@ -328,14 +329,18 @@ class PolarPairLJ : public PairLJ {
     double m_alpha;
 
     /* constructor and destructor */
-    PolarPairLJ(double eps, double sigma, double rc_LJ, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
+    PolarPairLJ(double eps, double sigma, double rc_LJ, double alpha, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
     ~PolarPairLJ();
 
     /* methods */
-    double energy_LJ_scal(double r, double sigma);
-    double force_LJ_scal(double r, double sigma);
+    double V_LJ(double rhat);
+    double V_LJ_prime(double rhat);
+    double get_sigma(double phi, double ti, double tj);
+    double get_sigma_dphi(double phi, double ti, double tj);
+    double energy_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
+    void force_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-    
+
 
 
 
