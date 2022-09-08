@@ -52,13 +52,12 @@ vector<string> required_parameters = vector<string>({"lx", "ly", "lz", "eps_LJ",
 /* random number generator type */
 const gsl_rng_type* RDT = gsl_rng_ranlxs1;
 //const gsl_rng_type* RDT = gsl_rng_mt19937;
-const size_t seed = 123;
 
 //** MAIN
 int main(int argc, char *argv[]){
 	string pathtooutput, pathtoinitconf, pathname, trajname;
 	stringstream convert;
-  fs::path traj_dat, traj_xyz, traj_neighbor, state_path;
+  fs::path traj_dat, traj_xyz, traj_neighbor, traj_polarity, state_path;
 	ofstream fthermo;
   YAML::Node config;
   gsl_rng *rng(0);
@@ -69,15 +68,15 @@ int main(int argc, char *argv[]){
   bool nlist_updated=false;
   size_t iter=0;
 
-  // TEST
+  /* test: start
   ofstream ftest;
   ftest.open("test.dat", ofstream::out);
   ftest << "";
   ftest.close();
-  // TEST
+  // test: end */
 
 //-----------------------------------------------
-//** INITIALIZATION
+// INITIALIZATION
 //-----------------------------------------------
 	if ( (argc != 1) && (argc != 2) ){
 		cout << "SYNTAX ERROR: arguments are [<initial conf>]" << endl;
@@ -177,6 +176,20 @@ int main(int argc, char *argv[]){
     }
   }
 
+  // directory for polarity vector format
+  pathname = "polarity";
+  traj_polarity = traj_dir;
+  traj_polarity /=  fs::path(pathname.c_str());
+  cout << traj_polarity.string() << endl;
+  if (fs::create_directory(traj_polarity))
+  {
+    cout << "Directory created: " << traj_polarity.string() << endl;
+  }
+  // remove all existing configurations
+  for (fs::directory_iterator end_dir_it, it(traj_polarity); it!=end_dir_it; ++it) {
+    fs::remove_all(it->path());
+  }
+
   // trajname
   trajname = "state";
 
@@ -250,6 +263,11 @@ int main(int argc, char *argv[]){
         state_path += ".xyz";
         world->dump_xyz(state_path.string(), iter);
       }
+      // polarity vector dump
+      state_path = traj_polarity;
+      state_path /=  convert.str();
+      state_path += ".dat";
+      world->dump_polarity_vectors(state_path.string());
     }
 
     if (nlist_updated) {
@@ -302,6 +320,11 @@ int main(int argc, char *argv[]){
   state_path /=  convert.str();
   state_path += ".xyz";
   world->dump_xyz(state_path.string(), iter);
+  // polarity dump -- xyz format
+  state_path = traj_polarity;
+  state_path /=  convert.str();
+  state_path += ".dat";
+  world->dump_polarity_vectors(state_path.string());
 
   // thermo
   ofstream fthermo_final("thermo_final.dat");

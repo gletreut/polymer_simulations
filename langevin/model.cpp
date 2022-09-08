@@ -314,6 +314,7 @@ void MDWorld::constrain_x(){
 
   return;
 }
+
 void MDWorld::constrain_v(){
   /*
    * Apply constraints on velocities
@@ -626,6 +627,46 @@ MDWorld::dump_neighbors(string fileout){
   fout.open(fileout.c_str());
 
   dump_neighbors(fout);
+
+  fout.close();
+
+  return;
+}
+
+void
+MDWorld::dump_polarity_vectors(ostream &mystream){
+  /*
+   * Dump polarity vectors
+   */
+
+  mystream << left << dec << fixed;
+  for (vector<ForceField*>::iterator it=m_ffields.begin(); it!=m_ffields.end(); ++it){
+    PolarPairLJ *ffield(0);
+    ffield = dynamic_cast<PolarPairLJ*>(*it);
+    if ( ffield != nullptr ){
+      gsl_matrix *pol_vec = ffield->m_pol_vec;
+
+      for (size_t i=0; i<pol_vec->size1;i++){
+          mystream << setw(10) << setprecision(0) << noshowpos << i;
+          mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(pol_vec,i,0);
+          mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(pol_vec,i,1);
+          mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(pol_vec,i,2);
+          mystream << endl;
+      }
+    }
+  }
+  return;
+}
+
+void
+MDWorld::dump_polarity_vectors(string fileout){
+  /*
+   * Dump polarity vectors
+   */
+  ofstream fout;
+  fout.open(fileout.c_str());
+
+  dump_polarity_vectors(fout);
 
   fout.close();
 

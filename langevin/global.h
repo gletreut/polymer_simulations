@@ -8,7 +8,6 @@
 
 /* random number generator type */
 extern const gsl_rng_type*  RDT;
-extern const size_t seed;
 
 /* test file streams */
 extern std::ofstream fforce;

@@ -86,6 +86,8 @@ class MDWorld {
     void dump_xyz(std::string fileout, size_t iter);
     void dump_neighbors(std::ostream &mystream);
     void dump_neighbors(std::string fileout);
+    void dump_polarity_vectors(std::ostream &mystream);
+    void dump_polarity_vectors(std::string fileout);
 
     // loading methods
     void load_dat(std::string filein);

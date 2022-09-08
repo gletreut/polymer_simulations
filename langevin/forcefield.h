@@ -327,6 +327,7 @@ class PolarPairLJ : public PairLJ {
     /* attributes */
     std::vector<std::pair<size_t, size_t> > m_chain_ends;
     double m_alpha;
+    gsl_matrix *m_pol_vec;
 
     /* constructor and destructor */
     PolarPairLJ(double eps, double sigma, double rc_LJ, double alpha, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
@@ -340,9 +341,6 @@ class PolarPairLJ : public PairLJ {
     double energy_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
     void force_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-
-
-
 
 };
 
