@@ -211,7 +211,6 @@ void yaml_config::init_stepper(YAML::Node config, gsl_rng *rng, MDWorld *world, 
 
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// FORCEFEILD CONFIGURATION
 void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
   /*
    * Initialize forcefields
@@ -247,7 +246,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     key = it->first.as<string>();
     FNode = it->second;
 
-    // (2) ConfinementBox
+    // ConfinementBox
     if (key == "ConfinmentBox") {
       double sigma, epsilon;
       cout << "Adding force field of type: " << key << endl;
@@ -259,7 +258,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
 
-    // (3) ConfinmentSphere
+    // ConfinmentSphere
     else if (key == "ConfinmentSphere") {
       double radius, sigma, epsilon;
       cout << "Adding force field of type: " << key << endl;
@@ -272,7 +271,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
 
-    // (4) PolymerGaussian
+    // PolymerGaussian
     else if (key == "PolymerGaussian") {
       size_t offset, N;
       double b;
@@ -286,7 +285,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
 
-    // (5) PolymerHarmonic
+    // PolymerHarmonic
     else if (key == "PolymerHarmonic") {
       size_t offset, N;
       double ke, r0;
@@ -301,7 +300,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
 
-    // (6) PolymerFENE
+    // PolymerFENE
     else if (key == "PolymerFENE") {
       size_t offset, N;
       double ke, rc, sigma, epsilon;
@@ -318,7 +317,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
 
-    // (7) PolymerKratkyPorod
+    // PolymerKratkyPorod
     else if (key == "PolymerKratkyPorod") {
       size_t offset, N;
       double lp;
@@ -350,7 +349,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-    // (8) SoftCore
+    // SoftCore
     else if (key == "SoftCore") {
       double A, sigma, rskin;
       size_t npair_max;
@@ -368,7 +367,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
 
-    // (9) PairLJ
+    // PairLJ
     else if (key == "PairLJ") {
       double eps, sigma, rc, rskin;
       size_t npair_max;
@@ -387,7 +386,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
 
-    // (10) PolarPairLJ - ADDED
+    // PolarPairLJ
     else if (key == "PolarPairLJ") {
       double eps, sigma, rc, rskin, alpha;
       size_t npair_max;
@@ -415,8 +414,38 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_neighbors.push_back(nneighbor);
       ffield = new PolarPairLJ(eps, sigma, rc, alpha, nneighbor, chain_ends_list);
       world->m_ffields.push_back(ffield);
-      // END OF FORCEFIELDS
     }
+
+    // PolarPair48
+    else if (key == "PolarPair48") {
+      double eps, sigma, rc, rskin, alpha;
+      size_t npair_max;
+      NeighborList *nneighbor(0);
+      cout << "Adding force field of type: " << key << endl;
+      cout << "Parameters:" << endl;
+      cout << FNode << endl;
+      eps = FNode["eps"].as<double>();
+      sigma = FNode["sigma"].as<double>();
+      alpha = FNode["alpha"].as<double>();
+      rc = FNode["rc"].as<double>();
+      rskin = FNode["rskin"].as<double>();
+      npair_max = FNode["npair_max"].as<size_t>();
+      nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
+
+      YAML::Node chain_ends = FNode["chain_ends"];
+      vector<pair<size_t, size_t> > chain_ends_list;
+      for (size_t i=0; i<chain_ends.size(); i++) {
+        size_t istart = chain_ends[i][0].as<size_t>();
+        size_t iend = chain_ends[i][1].as<size_t>();
+        pair<size_t, size_t> mypair (istart, iend);
+        chain_ends_list.push_back(mypair);
+      }
+
+      world->m_neighbors.push_back(nneighbor);
+      ffield = new PolarPair48(eps, sigma, rc, alpha, nneighbor, chain_ends_list);
+      world->m_ffields.push_back(ffield);
+    }
+
     else {
       cout << "Unrecognized force field type: " << key << endl;
     }
