@@ -11,8 +11,6 @@ using namespace std;
 //****************************************************************************
 //* yaml_config namespace
 //****************************************************************************
-
-
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 string yamltype_str(YAML::NodeType::value type){
   if (type == YAML::NodeType::Undefined) {
@@ -35,7 +33,6 @@ string yamltype_str(YAML::NodeType::value type){
   }
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
@@ -133,7 +130,6 @@ void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_rng(YAML::Node config, gsl_rng *rng) {
   /*
@@ -157,7 +153,6 @@ void yaml_config::init_rng(YAML::Node config, gsl_rng *rng) {
   return;
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_stepper(YAML::Node config, gsl_rng *rng, MDWorld *world, MDStepper* &stepper) {
@@ -208,7 +203,6 @@ void yaml_config::init_stepper(YAML::Node config, gsl_rng *rng, MDWorld *world, 
   return;
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
@@ -446,6 +440,101 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
 
+    // PolarPair48_2site
+    else if (key == "PolarPair48_2site") {
+      double eps_nn, eps_ww, eps_nw;
+      double sigma_nn, sigma_ww, sigma_nw;
+      double rc_nn, rc_ww, rc_nw;
+      double rho_n, rho_w;
+      double rskin;
+      size_t npair_max;
+      NeighborList *nneighbor(0);
+      cout << "Adding force field of type: " << key << endl;
+      cout << "Parameters:" << endl;
+      cout << FNode << endl;
+
+      string entry_key;
+      YAML::Node entry_value;
+
+      // energy scales
+      entry_key = "eps";
+      entry_value = FNode[entry_key];
+      if (! entry_value ) {
+        throw invalid_argument("Missing key: " + entry_key);
+      }
+      if (! (entry_value.Type() == YAML::NodeType::Sequence) ){
+        cout << entry_value;
+        throw invalid_argument("<" + entry_key + "> must be a sequence.");
+      }
+      eps_nn = entry_value[0].as<double>();
+      eps_ww = entry_value[1].as<double>();
+      eps_nw = entry_value[2].as<double>();
+
+      // hard cores
+      entry_key = "sigma";
+      entry_value = FNode[entry_key];
+      if (! entry_value ) {
+        throw invalid_argument("Missing key: " + entry_key);
+      }
+      if (! (entry_value.Type() == YAML::NodeType::Sequence) ){
+        cout << entry_value;
+        throw invalid_argument("<" + entry_key + "> must be a sequence.");
+      }
+      sigma_nn = entry_value[0].as<double>();
+      sigma_ww = entry_value[1].as<double>();
+      sigma_nw = entry_value[2].as<double>();
+
+      // cutoff distances
+      entry_key = "rc";
+      entry_value = FNode[entry_key];
+      if (! entry_value ) {
+        throw invalid_argument("Missing key: " + entry_key);
+      }
+      if (! (entry_value.Type() == YAML::NodeType::Sequence) ){
+        cout << entry_value;
+        throw invalid_argument("<" + entry_key + "> must be a sequence.");
+      }
+      rc_nn = entry_value[0].as<double>();
+      rc_ww = entry_value[1].as<double>();
+      rc_nw = entry_value[2].as<double>();
+
+      // radius to narrow and wide sites
+      entry_key = "rho";
+      entry_value = FNode[entry_key];
+      if (! entry_value ) {
+        throw invalid_argument("Missing key: " + entry_key);
+      }
+      if (! (entry_value.Type() == YAML::NodeType::Sequence) ){
+        cout << entry_value;
+        throw invalid_argument("<" + entry_key + "> must be a sequence.");
+      }
+      rho_n = entry_value[0].as<double>();
+      rho_w = entry_value[1].as<double>();
+
+      // neighbor list parameters
+      rskin = FNode["rskin"].as<double>();
+      npair_max = FNode["npair_max"].as<size_t>();
+      nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
+
+      // indices of chain ends
+      YAML::Node chain_ends = FNode["chain_ends"];
+      vector<pair<size_t, size_t> > chain_ends_list;
+      for (size_t i=0; i<chain_ends.size(); i++) {
+        size_t istart = chain_ends[i][0].as<size_t>();
+        size_t iend = chain_ends[i][1].as<size_t>();
+        pair<size_t, size_t> mypair (istart, iend);
+        chain_ends_list.push_back(mypair);
+      }
+
+      // add forcefield to world
+      world->m_neighbors.push_back(nneighbor);
+      ffield = new PolarPair48_2site(eps_nn, eps_ww, eps_nw,
+          sigma_nn, sigma_ww, sigma_nw,
+          rc_nn, rc_ww, rc_nw,
+          rho_n, rho_w,
+          nneighbor, chain_ends_list);
+      world->m_ffields.push_back(ffield);
+    }
     else {
       cout << "Unrecognized force field type: " << key << endl;
     }

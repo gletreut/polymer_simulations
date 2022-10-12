@@ -234,7 +234,6 @@ class PolymerKratkyPorod : public ForceField {
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-
 class SoftCore : public ForceField {
   /*
    * Class defining a force field for soft-core excluded volume.
@@ -257,7 +256,6 @@ class SoftCore : public ForceField {
     double force_scal(double r);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 };
-
 
 class PairLJ : public ForceField {
   /*
@@ -338,8 +336,44 @@ class PolarPair48 : public ForceField {
     /* methods */
     double get_A(double phi, double ti, double tj);
     double get_A_dphi(double phi, double ti, double tj);
-    double energy_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
-    void force_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
+    double get_energy(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
+    void get_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+
+};
+
+class PolarPair48_2site : public ForceField {
+  /*
+   * Class defining a force field as in H. Li and G. Lykotrafitis. “Two-component coarse-grained molecular-dynamics model
+   * for the human erythrocyte membrane”. In: Biophysical journal 102.1 (2012).
+   * Object with 2 sites aligned along the polarity vectors.
+   */
+
+  public:
+    /* attributes */
+    double m_eps_nn, m_eps_ww, m_eps_nw;
+    double m_sigma_nn, m_sigma_ww, m_sigma_nw;
+    double m_r0_nn, m_r0_ww, m_r0_nw;
+    double m_rc_nn, m_rc_ww, m_rc_nw;
+    double m_rho_n, m_rho_w;
+    NeighborList *m_neighbors;
+    std::vector<std::pair<size_t, size_t> > m_chain_ends;
+    gsl_matrix *m_pol_vec;
+
+    /* constructor and destructor */
+    PolarPair48_2site(double eps_nn, double eps_ww, double eps_nw,
+                double sigma_nn, double sigma_ww, double sigma_nw,
+                double rc_nn, double rc_ww, double rc_nw,
+                double rho_n, double rho_w,
+                NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
+    ~PolarPair48_2site();
+
+    /* methods */
+    double potential(double r, double eps, double rc, double r0);
+    double potential_deriv(double r, double eps, double rc, double r0);
+    double get_energy(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
+    double get_energy_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
+    // void get_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 
 };
