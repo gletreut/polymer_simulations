@@ -20,8 +20,10 @@ LDLIBS += -lboost_filesystem -lboost_system
 LDLIBS += -lyaml-cpp
 
 SRC = main.cpp model.cpp utils.cpp forcefield.cpp neighborlist.cpp linalg.cpp stepper.cpp constraint.cpp integration.cpp yaml_config.cpp
+# SRC = $(wildecard *.cpp)
 OBJS = $(SRC:.cpp=.o)
 PROG = ../bin/simu_langevin
+PREFIX=$(CONDA_PREFIX)
 
 all: $(PROG)
 
@@ -58,5 +60,10 @@ utils.o: utils.h utils.tpp utils.cpp
 yaml_config.o: yaml_config.h model.h stepper.h integration.h forcefield.h constraint.h neighborlist.h yaml_config.cpp
 	$(CC) $(CFLAGS) -c yaml_config.cpp
 
+.PHONY: clean
 clean:
 	rm -f *~ *.o $(PROG) core a.out
+
+.PHONY: install
+install: $(PROG)
+	  cp $(PROG) $(PREFIX)/bin/
