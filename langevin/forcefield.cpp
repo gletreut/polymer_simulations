@@ -1103,7 +1103,7 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   ftp = gsl_vector_calloc(3);
 
 
-  //* fixed orientation
+  /* fixed orientation
   double freq = 2.*3.14158/9.;
   for (size_t n=0; n<m_pol_vec->size1; n++){
     double ux = cos(n*freq);
@@ -1129,7 +1129,7 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   gsl_rng_free(rng);
   // */
 
-  /* chain polarity vector
+  //* chain polarity vector
   for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
   {
     size_t istart = it->first;                                  // istart assigned to iterator it that points to first (beginning of chain)
@@ -1408,6 +1408,16 @@ void PolarPair48::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   xtp = gsl_vector_calloc(3);
   ftp = gsl_vector_calloc(3);
 
+
+  /* fixed orientation
+  double freq = 2.*3.14158/9.;
+  for (size_t n=0; n<m_pol_vec->size1; n++){
+    double ux = cos(n*freq);
+    double uy = sin(n*freq);
+    gsl_matrix_set(m_pol_vec, n, 0, ux);
+    gsl_matrix_set(m_pol_vec, n, 1, uy);
+  }
+  // */
 
   //* chain polarity vector
   for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)

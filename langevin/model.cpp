@@ -674,6 +674,23 @@ MDWorld::dump_polarity_vectors(ostream &mystream){
         }
       }
     }
+
+    // PolarPair48_2site
+    {
+      PolarPair48_2site *ffield(0);
+      ffield = dynamic_cast<PolarPair48_2site*>(*it);
+      if ( ffield != nullptr ){
+        gsl_matrix *pol_vec = ffield->m_pol_vec;
+
+        for (size_t i=0; i<pol_vec->size1;i++){
+          mystream << setw(10) << setprecision(0) << noshowpos << i;
+          mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(pol_vec,i,0);
+          mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(pol_vec,i,1);
+          mystream << setw(18) << setprecision(8) << showpos << gsl_matrix_get(pol_vec,i,2);
+          mystream << endl;
+        }
+      }
+    }
   }
   return;
 }
