@@ -3,7 +3,8 @@ CC = g++
 LINLIBS = GSL
 CFLAGS := -std=c++11 -O3 -Wall -g
 LDLIBS := -lm
-LDFLAGS :=
+#LDFLAGS :=
+LDFLAGS := -Wl,-rpath,$(CONDA_PREFIX)/lib/
 ifeq ($(LINLIBS), LAPACK)
 CFLAGS += -DLAPACK
 #LDLIBS = -lgsl -lsbtk -llapacke -lcblas -llapack -lblas -lgfortran -lm
