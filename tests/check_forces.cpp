@@ -5,6 +5,8 @@
 //  returned by energy_force() with the central difference
 //      F_fd = -[U(x + eps e) - U(x - eps e)] / (2 eps),
 //  where U is the full energy returned by the same energy_force() call.
+//  Polar force fields are checked on one chain and on several unsorted chains,
+//  and must reject chain_ends that do not partition the particles.
 //  Also check that Point/Axis/Plane constraints hold after one Langevin step.
 //
 //  Build and run: make -C langevin check
@@ -12,6 +14,7 @@
 #include <cmath>
 #include <cstdio>
 #include <functional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <utility>
@@ -175,6 +178,17 @@ static void report(const string &name, double err, bool counted=true) {
   printf("%-34s %12.3e %12.3e  %s\n", name.c_str(), g_fmax, err, counted ? (pass ? "PASS" : "FAIL") : (pass ? "(pass)" : "(fail)"));
 }
 
+template <class Make>
+static void expect_invalid_argument(const string &name, Make make) {
+  /* PASS if make() throws std::invalid_argument */
+  bool pass = false;
+  try { make(); }
+  catch (const invalid_argument &) { pass = true; }
+  catch (...) {}
+  if (!pass) nfail += 1;
+  printf("%-34s %12s %12s  %s\n", name.c_str(), "-", "-", pass ? "PASS" : "FAIL");
+}
+
 static NeighborList* all_pairs(gsl_matrix *x, gsl_spmatrix_uint *bonds) {
   /* neighbor list holding every non-bonded pair */
   size_t N = x->size1;
@@ -240,6 +254,8 @@ int main() {
   gsl_rng_set(rng, 12345);
   gsl_spmatrix_uint *bonds = gsl_spmatrix_uint_alloc(N, N);
   ChainEnds chain_ends(1, make_pair(size_t(0), N-1));
+  // several chains, unsorted, including a 2-bead chain
+  const ChainEnds chains3 = {{6, 9}, {0, 1}, {2, 5}};
 
   printf("%-34s %12s %12s  %s\n", "check", "max|F|", "error", "status");
 
@@ -325,6 +341,8 @@ int main() {
     report("PolarPairLJ", fd_error(wrap(&ff), x, 2));
     set_polarity(&ff, x);
     report("  PolarPairLJ (frozen polarity)", fd_error(wrap_frozen_polarity(&ff), x, 2), false);
+    PolarPairLJ ff3(1.0, 1.0, 2.5, 0.2, nl, chains3);
+    report("PolarPairLJ (3 chains)", fd_error(wrap(&ff3), x, 2));
     delete nl; gsl_matrix_free(x);
   }
   {
@@ -334,6 +352,10 @@ int main() {
     report("PolarPair48", fd_error(wrap(&ff), x, 2));
     set_polarity(&ff, x);
     report("  PolarPair48 (frozen polarity)", fd_error(wrap_frozen_polarity(&ff), x, 2), false);
+    PolarPair48 ff3(1.0, 1.0, 2.0, 0.3, nl, chains3);
+    report("PolarPair48 (3 chains)", fd_error(wrap(&ff3), x, 2));
+    PolarPair48 ffa(1.0, 1.0, 2.0, 0.8, nl, chain_ends);
+    report("PolarPair48 (alpha = 0.8)", fd_error(wrap(&ffa), x, 2));
     delete nl; gsl_matrix_free(x);
   }
   {
@@ -347,7 +369,21 @@ int main() {
     report("PolarPair48_2site", fd_error(wrap(&ff), x, 2));
     set_polarity(&ff, x);
     report("  PolarPair48_2site (frozen pol.)", fd_error(wrap_frozen_polarity(&ff), x, 2), false);
+    PolarPair48_2site ff3(1.0, 0.5, 0.8, 0.6, 0.6, 0.6, 1.5, 1.5, 1.5, 0.3, 0.3, nl, chains3);
+    report("PolarPair48_2site (3 chains)", fd_error(wrap(&ff3), x, 2));
     delete nl; gsl_matrix_free(x);
+  }
+
+  // --- polar chain_ends that do not partition 0..N-1 are rejected
+  {
+    const pair<const char*, ChainEnds> bad[3] = {
+      {"gap", {{0, 4}, {6, 9}}},
+      {"overlap", {{0, 5}, {4, 9}}},
+      {"singleton", {{0, 0}, {1, 9}}},
+    };
+    for (const auto &b : bad)
+      expect_invalid_argument(string("PolarPair48 bad ends: ") + b.first,
+                              [&] { PolarPair48 ff(1.0, 1.0, 2.0, 0.3, 0, b.second); });
   }
 
   // --- constraints after one Lang_VVerlet step
