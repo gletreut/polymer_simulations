@@ -12,29 +12,6 @@ using namespace std;
 //* yaml_config namespace
 //****************************************************************************
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-string yamltype_str(YAML::NodeType::value type){
-  if (type == YAML::NodeType::Undefined) {
-    return "Undefined";
-  }
-  else if (type == YAML::NodeType::Null) {
-    return "Null";
-  }
-  else if (type == YAML::NodeType::Scalar) {
-    return "Scalar";
-  }
-  else if (type == YAML::NodeType::Sequence) {
-    return "Sequence";
-  }
-  else if (type == YAML::NodeType::Map) {
-    return "Map";
-  }
-  else {
-    return "Error";
-  }
-}
-//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
   /*
    * Re-initialize the MDWorld object based on the input parameters.
@@ -240,20 +217,20 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     key = it->first.as<string>();
     FNode = it->second;
 
-    // ConfinementBox
-    if (key == "ConfinmentBox") {
+    // ConfinementBox (legacy spelling: ConfinmentBox)
+    if (key == "ConfinementBox" || key == "ConfinmentBox") {
       double sigma, epsilon;
       cout << "Adding force field of type: " << key << endl;
       cout << "Parameters:" << endl;
       cout << FNode << endl;
       sigma = FNode["sigma"].as<double>();
       epsilon = FNode["epsilon"].as<double>();
-      ffield = new ConfinmentBox(-0.5*world->m_lx, +0.5*world->m_lx, -0.5*world->m_ly,+0.5*world->m_ly,-0.5*world->m_lz,+0.5*world->m_lz,sigma,epsilon);
+      ffield = new ConfinementBox(-0.5*world->m_lx, +0.5*world->m_lx, -0.5*world->m_ly,+0.5*world->m_ly,-0.5*world->m_lz,+0.5*world->m_lz,sigma,epsilon);
       world->m_ffields.push_back(ffield);
     }
 
-    // ConfinmentSphere
-    else if (key == "ConfinmentSphere") {
+    // ConfinementSphere (legacy spelling: ConfinmentSphere)
+    else if (key == "ConfinementSphere" || key == "ConfinmentSphere") {
       double radius, sigma, epsilon;
       cout << "Adding force field of type: " << key << endl;
       cout << "Parameters:" << endl;
@@ -261,7 +238,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       radius = FNode["radius"].as<double>();
       sigma = FNode["sigma"].as<double>();
       epsilon = FNode["epsilon"].as<double>();
-      ffield = new ConfinmentSphere(radius, sigma, epsilon);
+      ffield = new ConfinementSphere(radius, sigma, epsilon);
       world->m_ffields.push_back(ffield);
     }
 
@@ -324,24 +301,6 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       ffield = new PolymerKratkyPorod(offset, N, lp, world->m_bonds);
       world->m_ffields.push_back(ffield);
     }
-
-    //GEMField--------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    // else if (key == "GEMField") {
-    //   size_t offset, N;
-    //   double b;
-    //   string kmat_fpath;
-    //   cout << "Adding force field of type: " << key << endl;
-    //   cout << "Parameters:" << endl;
-    //   cout << FNode << endl;
-    //   offset = FNode["offset"].as<size_t>();
-    //   N = FNode["N"].as<size_t>();
-    //   b = FNode["b"].as<double>();
-    //   kmat_fpath = FNode["kmat_fpath"].as<string>();
-    //   ffield = new GEMField(offset, N, b, kmat_fpath);
-    //   world->m_ffields.push_back(ffield);
-    // }
-    //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
     // SoftCore
     else if (key == "SoftCore") {
@@ -538,7 +497,6 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     else {
       cout << "Unrecognized force field type: " << key << endl;
     }
-
   }
   return;
 }
@@ -565,7 +523,7 @@ void yaml_config::init_constraints(YAML::Node config, MDWorld* &world) {
   lineup = config[rootkey];
 
   // check that we have a map
-  if ( lineup.Type() == YAML::NodeType::Null){ // if null just return (no forcefields)
+  if ( lineup.Type() == YAML::NodeType::Null){ // if null just return (no constraints)
     cout << "No constraint detected" << endl;
     return;
   }
@@ -573,7 +531,7 @@ void yaml_config::init_constraints(YAML::Node config, MDWorld* &world) {
     throw invalid_argument("<constraints> must be a map");
   }
 
-  // iterate on nodes and add forcefields
+  // iterate on nodes and add constraints
   for (YAML::const_iterator it=lineup.begin(); it!=lineup.end(); ++it){
     string key;
     YAML::Node FNode;
@@ -627,7 +585,6 @@ void yaml_config::init_constraints(YAML::Node config, MDWorld* &world) {
     else {
       cout << "Unrecognized constraint type: " << key << endl;
     }
-
   }
   return;
 }
@@ -698,7 +655,7 @@ void yaml_config::init_integration_params(YAML::Node config, IntegrationParams &
     iparams.pos_dat = lineup["positions"]["dat"].as<bool>();
   }
 
-  // neighbor list
+  // neighbor list dump
   if (lineup["neighbor"]){
     iparams.neighbor = lineup["neighbor"].as<bool>();
   }

@@ -8,12 +8,10 @@ ForceField::~ForceField(){
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-
 //****************************************************************************
-// ConfinmentBox
+// ConfinementBox
 //****************************************************************************
-ConfinmentBox::ConfinmentBox(double xlo, double xhi, double ylo, double yhi, double zlo, double zhi, double sigma, double eps) :
+ConfinementBox::ConfinementBox(double xlo, double xhi, double ylo, double yhi, double zlo, double zhi, double sigma, double eps) :
   m_xlo(xlo),
   m_xhi(xhi),
   m_ylo(ylo),
@@ -29,12 +27,12 @@ ConfinmentBox::ConfinmentBox(double xlo, double xhi, double ylo, double yhi, dou
   m_rc_LJ = m_sigma*pow(2.,1./6);
 }
 
-ConfinmentBox::~ConfinmentBox(){
+ConfinementBox::~ConfinementBox(){
 }
 
-double ConfinmentBox::energy_LJ_scal(double r){
+double ConfinementBox::energy_LJ_scal(double r){
   /*
-   * compute the energy of the  LJ interaction when the algebric
+   * compute the energy of the  LJ interaction when the algebraic
    * distance is r.
    */
 
@@ -51,9 +49,9 @@ double ConfinmentBox::energy_LJ_scal(double r){
   }
 }
 
-double ConfinmentBox::force_LJ_scal(double r){
+double ConfinementBox::force_LJ_scal(double r){
   /*
-   * compute the algebric norm of the LJ force applied when the algebric
+   * compute the algebraic norm of the LJ force applied when the algebraic
    * distance is r.
    */
   double x, x6, x12;
@@ -69,10 +67,10 @@ double ConfinmentBox::force_LJ_scal(double r){
   }
 }
 
-void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+void ConfinementBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   /*
    * Compute the potential energy and force (minus gradient) produced by a
-   * confinment box
+   * confinement box
    */
 
   size_t N;
@@ -96,27 +94,15 @@ void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     gsl_vector_set(force,0,1.0);  // ex
     r = rx - m_xlo;
     *u += energy_LJ_scal(r);
-    fnorm = force_LJ_scal(r);  // algebric norm postive
+    fnorm = force_LJ_scal(r);  // algebraic norm positive
     linalg_daxpy(fnorm, force, &fi.vector);
-
-    // // test
-    // if (fabs(fnorm) > 0) {
-    //   cout << setw(10) << setprecision(0) << i;
-    //   cout << setw(20) << setprecision(6) << fnorm;
-    //   cout << setw(20) << setprecision(6) << rx;
-    //   cout << setw(20) << setprecision(6) << m_xlo;
-    //   cout << setw(20) << setprecision(6) << r;
-    //   cout << endl;
-    //   throw invalid_argument("Test");
-    // }
-    // // test
 
     /* xhi */
     gsl_vector_set_all(force,0.0);
     gsl_vector_set(force,0,1.0);  // ex
     r = rx - m_xhi;
     *u += energy_LJ_scal(r);
-    fnorm = force_LJ_scal(r);  // algebric norm postive
+    fnorm = force_LJ_scal(r);  // algebraic norm positive
     linalg_daxpy(fnorm, force, &fi.vector);
 
     /* ylo */
@@ -124,7 +110,7 @@ void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     gsl_vector_set(force,1,1.0);  // ey
     r = ry - m_ylo;
     *u += energy_LJ_scal(r);
-    fnorm = force_LJ_scal(r);  // algebric norm postive
+    fnorm = force_LJ_scal(r);  // algebraic norm positive
     linalg_daxpy(fnorm, force, &fi.vector);
 
     /* yhi */
@@ -132,7 +118,7 @@ void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     gsl_vector_set(force,1,1.0);  // ey
     r = ry - m_yhi;
     *u += energy_LJ_scal(r);
-    fnorm = force_LJ_scal(r);  // algebric norm postive
+    fnorm = force_LJ_scal(r);  // algebraic norm positive
     linalg_daxpy(fnorm, force, &fi.vector);
 
     /* zlo */
@@ -140,7 +126,7 @@ void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     gsl_vector_set(force,2,1.0);  // ez
     r = rz - m_zlo;
     *u += energy_LJ_scal(r);
-    fnorm = force_LJ_scal(r);  // algebric norm postive
+    fnorm = force_LJ_scal(r);  // algebraic norm positive
     linalg_daxpy(fnorm, force, &fi.vector);
 
     /* zhi */
@@ -148,7 +134,7 @@ void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     gsl_vector_set(force,2,1.0);  // ez
     r = rz - m_zhi;
     *u += energy_LJ_scal(r);
-    fnorm = force_LJ_scal(r);  // algebric norm postive
+    fnorm = force_LJ_scal(r);  // algebraic norm positive
     linalg_daxpy(fnorm, force, &fi.vector);
   }
 
@@ -158,12 +144,10 @@ void ConfinmentBox::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-
 //****************************************************************************
-// ConfinmentSphere
+// ConfinementSphere
 //****************************************************************************
-ConfinmentSphere::ConfinmentSphere(double radius, double sigma, double eps) :
+ConfinementSphere::ConfinementSphere(double radius, double sigma, double eps) :
   m_radius(radius),
   m_sigma(sigma),
   m_eps(eps)
@@ -174,12 +158,12 @@ ConfinmentSphere::ConfinmentSphere(double radius, double sigma, double eps) :
   m_rc_LJ = m_sigma*pow(2.,1./6);
 }
 
-ConfinmentSphere::~ConfinmentSphere(){
+ConfinementSphere::~ConfinementSphere(){
 }
 
-double ConfinmentSphere::energy_LJ_scal(double r){
+double ConfinementSphere::energy_LJ_scal(double r){
   /*
-   * compute the energy of the  LJ interaction when the algebric
+   * compute the energy of the  LJ interaction when the algebraic
    * distance is r.
    */
 
@@ -196,9 +180,9 @@ double ConfinmentSphere::energy_LJ_scal(double r){
   }
 }
 
-double ConfinmentSphere::force_LJ_scal(double r){
+double ConfinementSphere::force_LJ_scal(double r){
   /*
-   * compute the algebric norm of the LJ force applied when the algebric
+   * compute the algebraic norm of the LJ force applied when the algebraic
    * distance is r.
    */
   double x, x6, x12;
@@ -214,10 +198,10 @@ double ConfinmentSphere::force_LJ_scal(double r){
   }
 }
 
-void ConfinmentSphere::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+void ConfinementSphere::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   /*
    * Compute the potential energy and force (minus gradient) produced by a
-   * confinment box
+   * confinement sphere
    */
 
   size_t N;
@@ -245,9 +229,8 @@ void ConfinmentSphere::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces
     // distance
     r = r - m_radius;
     *u += energy_LJ_scal(r);
-    fnorm = force_LJ_scal(r);  // algebric norm postive
+    fnorm = force_LJ_scal(r);  // algebraic norm positive
     linalg_daxpy(fnorm, force, &fi.vector);
-
   }
 
   /* exit */
@@ -255,8 +238,6 @@ void ConfinmentSphere::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces
   return;
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
 
 //****************************************************************************
 // PolymerGaussian
@@ -318,8 +299,6 @@ void PolymerGaussian::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces)
   return;
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
 
 //****************************************************************************
 // PolymerHarmonic
@@ -384,8 +363,6 @@ void PolymerHarmonic::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces)
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-
 //****************************************************************************
 // PolymerFENE
 //****************************************************************************
@@ -407,7 +384,6 @@ PolymerFENE::PolymerFENE(size_t offset, size_t N, double ke, double rc, double s
     size_t n = m_offset + i;
     gsl_spmatrix_uint_set(m_bonds, n, n+1, 1);
   }
-
 }
 
 PolymerFENE::~PolymerFENE(){
@@ -416,7 +392,7 @@ PolymerFENE::~PolymerFENE(){
 double PolymerFENE::energy_LJ_scal(double r){
   /* methods */
   /*
-   * compute the energy of the  LJ interaction when the algebric
+   * compute the energy of the  LJ interaction when the algebraic
    * distance is r.
    */
 
@@ -435,7 +411,7 @@ double PolymerFENE::energy_LJ_scal(double r){
 
 double PolymerFENE::force_LJ_scal(double r){
   /*
-   * compute the algebric norm of the LJ force applied when the algebric
+   * compute the algebraic norm of the LJ force applied when the algebraic
    * distance is r.
    */
   double x, x6, x12;
@@ -464,10 +440,6 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   // initialize
   bond = gsl_vector_calloc(3);
 
-  // set energy and force to zero
-  //*u = 0;
-  //gsl_matrix_set_all(forces, 0.0);
-
   // iterate over the bonds (r_\{i+1\} - r_i)
   for (size_t i=0; i<m_N-1; ++i){
     n = m_offset + i;
@@ -490,7 +462,6 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
       utils::print_vector(convert, &vnp.vector);
       convert << "bond: " << endl;
       utils::print_vector(convert, bond);
-      //cout << convert.str();
       throw runtime_error(convert.str());
     }
 
@@ -506,7 +477,7 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     linalg_daxpy(-fnorm, bond, &fn.vector);
     linalg_daxpy(+fnorm, bond, &fnp.vector);
     //  LJ
-    fnorm = force_LJ_scal(r);  // algebric norm
+    fnorm = force_LJ_scal(r);  // algebraic norm
     fnorm /= (r*r);            // because bond is not normalized to 1
     linalg_daxpy(-fnorm, bond, &fn.vector);
     linalg_daxpy(+fnorm, bond, &fnp.vector);
@@ -517,8 +488,6 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   return;
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
 
 //****************************************************************************
 // PolymerKratkyPorod
@@ -619,116 +588,6 @@ void PolymerKratkyPorod::energy_force(gsl_matrix *x, double *u, gsl_matrix *forc
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-// GEMField Class -----------------------------------------------------------------------------------------------------------------------------------------------------------
-//****************************************************************************
-// GEMField
-//****************************************************************************
-// GEMField::GEMField(size_t offset, size_t N, double b, string filepath) :
-//   m_offset(offset),
-//   m_N(N),
-//   m_b(b)
-// {
-//   /* declarations */
-//   gsl_matrix *K(0);
-//   ifstream fin;
-//
-//   /* initialize the matrix */
-//   m_W = gsl_matrix_calloc(m_N,m_N);
-//   K = gsl_matrix_calloc(m_N,m_N);
-//   gsl_matrix_set_all(m_W,0.0);
-//   gsl_matrix_set_all(K,0.0);
-//
-//   /* initialize the temporary vector */
-//   m_fa = gsl_vector_calloc(m_N);
-//
-//   /* load couplings */
-//   fin.open(filepath.c_str());
-//   utils::load_matrix(fin, K);
-//   fin.close();
-//
-//   /* compute quadratic matrix of interactions */
-//   K2W(K,m_W);
-//
-//   /* initialize prefactor for force */
-//   m_fpref = 3./(m_b*m_b);
-//
-//   /* exit */
-//   gsl_matrix_free(K);
-// }
-//
-// GEMField::~GEMField() {
-//   gsl_matrix_free(m_W);
-//   gsl_vector_free(m_fa);
-// }
-//
-// /* methods */
-// void GEMField::K2W(const gsl_matrix *K, gsl_matrix *W){
-//   /*
-//    * Compute quadratic matrix of interactions from coupling matrix.
-//    */
-//   double kij, w;
-//
-//   gsl_matrix_set_all(W,0.0);
-//   for (size_t i=0; i<m_N; ++i){
-//     for (size_t j=i; j<m_N; ++j){
-//       // coupling for i,j
-//       kij = gsl_matrix_get(K,i,j);
-//
-//       // ri^2 term
-//       w = gsl_matrix_get(W,i,i);
-//       w += kij;
-//       gsl_matrix_set(W,i,i,w);
-//
-//       // rj^2 term
-//       w = gsl_matrix_get(W,j,j);
-//       w += kij;
-//       gsl_matrix_set(W,j,j,w);
-//
-//       // ri.rj term
-//       w = gsl_matrix_get(W,i,j);
-//       w += -kij;
-//       gsl_matrix_set(W,i,j,w);
-//
-//       // rj.ri term
-//       w = gsl_matrix_get(W,j,i);
-//       w += -kij;
-//       gsl_matrix_set(W,j,i,w);
-//     }
-//   }
-//
-//   return;
-// }
-// void GEMField::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
-//   /*
-//    * Compute the potential energy and force (minus gradient) of a GEM potential.
-//    *   \beta U(X, Y, Z) = 3/(2b^2) [ X^T W X + Y^T W Y + Z^T W Z],
-//    *   where X, Y and Z are vectors of size N.
-//    */
-//
-//   // make sub-matrix corresponding to atoms belonging to the GEM
-//   gsl_matrix_view xsub = gsl_matrix_submatrix(x, m_offset, 0, m_N, x->size2);
-//   gsl_matrix_view fsub = gsl_matrix_submatrix(forces, m_offset, 0, m_N, x->size2);
-//
-//   // iterate on the x,y and z coordinates and compute the force and energy
-//   // contributions
-//   for (size_t d=0; d<3; ++d){
-//     gsl_vector_view xa = gsl_matrix_column(&xsub.matrix,d);
-//     gsl_vector_view fa = gsl_matrix_column(&fsub.matrix,d);
-//
-//     // update force
-//     linalg_dgemv(0, -m_fpref, m_W, &xa.vector, 0.0, m_fa);  // fa = -3/b^2 W.X
-//     linalg_daxpy(1.0, m_fa, &fa.vector);
-//
-//     // update energy
-//     *u += -0.5*linalg_ddot(&xa.vector, m_fa);               // U = 3/(2b^2) X^T W X
-//   }
-//
-//   return;
-// }
-//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
 //****************************************************************************
 // SoftCore
 //****************************************************************************
@@ -748,7 +607,7 @@ SoftCore::~SoftCore() {
 double SoftCore::energy_scal(double r){
   /* methods */
   /*
-   * compute the energy of the  interaction when the algebric
+   * compute the energy of the  interaction when the algebraic
    * distance is r.
    */
 
@@ -762,7 +621,7 @@ double SoftCore::energy_scal(double r){
 
 double SoftCore::force_scal(double r){
   /*
-   * compute the algebric norm of the force applied when the algebric
+   * compute the algebraic norm of the force applied when the algebraic
    * distance is r.
    */
   if (fabs(r) < m_rc) {
@@ -818,8 +677,6 @@ void SoftCore::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-
 //****************************************************************************
 // PairLJ
 //****************************************************************************
@@ -845,7 +702,7 @@ PairLJ::~PairLJ(){
 
 double PairLJ::energy_LJ_scal(double r){
   /*
-   * compute the energy of the  LJ interaction when the algebric
+   * compute the energy of the  LJ interaction when the algebraic
    * distance is r.
    */
 
@@ -864,7 +721,7 @@ double PairLJ::energy_LJ_scal(double r){
 
 double PairLJ::force_LJ_scal(double r){
   /*
-   * compute the algebric norm of the LJ force applied when the algebric
+   * compute the algebraic norm of the LJ force applied when the algebraic
    * distance is r.
    */
   double x, x6, x12;
@@ -924,8 +781,6 @@ void PairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-
 //****************************************************************************
 // PolarPairLJ
 //****************************************************************************
@@ -935,14 +790,6 @@ PolarPairLJ::PolarPairLJ(double eps, double sigma, double rc_LJ, double alpha, N
   m_alpha(alpha)
 
 {
-  // m_4eps = 4.0*m_eps;
-  // m_fpref = 48.0*m_eps / m_sigma;
-  //
-  // double x = 1./m_rc_LJ;
-  // double x6 = x*x*x*x*x*x;
-  // double x12 = x6*x6;
-  // m_u0 = m_4eps*(x12 - x6);
-
   int imax = 0;
   for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
   {
@@ -1102,34 +949,7 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   xtp = gsl_vector_calloc(3);
   ftp = gsl_vector_calloc(3);
 
-
-  /* fixed orientation
-  double freq = 2.*3.14158/9.;
-  for (size_t n=0; n<m_pol_vec->size1; n++){
-    double ux = cos(n*freq);
-    double uy = sin(n*freq);
-    gsl_matrix_set(m_pol_vec, n, 0, ux);
-    gsl_matrix_set(m_pol_vec, n, 1, uy);
-  }
-  // */
-
-  /* random orientation
-  const gsl_rng_type* RDT = gsl_rng_ranlxs1;
-  gsl_rng *rng = gsl_rng_alloc(RDT);
-  for (size_t n=0; n<m_pol_vec->size1; n++){
-    double uvar = gsl_rng_uniform(rng)*2.0*3.14158;
-    // double vvar = gsl_rng_uniform(rng);
-    // double rvar = sqrt(-2.*log(vvar));
-    double rvar = 1.0;
-    double ux = rvar * cos(uvar);
-    double uy = rvar * sin(uvar);
-    gsl_matrix_set(m_pol_vec, n, 0, ux);
-    gsl_matrix_set(m_pol_vec, n, 1, uy);
-  }
-  gsl_rng_free(rng);
-  // */
-
-  //* chain polarity vector
+  // chain polarity vector
   for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
   {
     size_t istart = it->first;                                  // istart assigned to iterator it that points to first (beginning of chain)
@@ -1144,7 +964,6 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     gsl_matrix_set(rot, 1, 0, 1.0);
     gsl_matrix_set(rot, 0, 1, -1.0);
     gsl_matrix_set(rot, 1, 1, 0.0);
-
 
     // INTERIOR BEADS ([istart + 1] to [iend - 1])
     for (size_t i = istart + 1; i < iend; i++)
@@ -1195,13 +1014,6 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 
     gsl_matrix_free(rot);
   }
-  // */
-
-  /* test: start
-  ofstream ftest;
-  ftest.open("test.dat", ofstream::app);
-  ftest << scientific << setprecision(8) << left;
-  // test: end */
 
   // Loop neighbors
   for (size_t i=0; i<m_neighbors->m_npair; ++i)
@@ -1224,46 +1036,10 @@ void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     force_LJ_scal(&xn.vector, &xm.vector, &pn.vector, &pm.vector, ftp);
     linalg_daxpy(-1.0, ftp, &fn.vector);
     linalg_daxpy(1.0, ftp, &fm.vector);
-
-    /* test: start
-    gsl_vector_memcpy(xtp, &xm.vector);
-    linalg_daxpy(-1.0, &xn.vector, xtp);
-    double r = linalg_dnrm2(xtp);
-    double phi_tp = utils::get_angle_2d(xtp);
-    double ti_tp = utils::get_angle_2d(&pn.vector);
-    double tj_tp = utils::get_angle_2d(&pm.vector);
-    double sigma = get_sigma(phi_tp, ti_tp, tj_tp);
-    double fnorm = linalg_dnrm2(ftp);
-    if (fabs(fnorm) > 1.0e-10){
-      ftest << setw(18) << n;
-      ftest << setw(18) << m;
-      ftest << setw(18) << gsl_vector_get(&xn.vector, 0);
-      ftest << setw(18) << gsl_vector_get(&xn.vector, 1);
-      ftest << setw(18) << gsl_vector_get(&xm.vector, 0);
-      ftest << setw(18) << gsl_vector_get(&xm.vector, 1);
-      ftest << setw(18) << gsl_vector_get(&pn.vector, 0);
-      ftest << setw(18) << gsl_vector_get(&pn.vector, 1);
-      ftest << setw(18) << gsl_vector_get(&pm.vector, 0);
-      ftest << setw(18) << gsl_vector_get(&pm.vector, 1);
-      ftest << setw(18) << gsl_vector_get(ftp, 0);
-      ftest << setw(18) << gsl_vector_get(ftp, 1);
-      ftest << setw(18) << gsl_vector_get(ftp, 2);
-      ftest << setw(18) << utp;
-      ftest << setw(18) << sigma;
-      ftest << setw(18) << r;
-      ftest << setw(18) << fnorm;
-      ftest << endl;
-    }
-    // test: end */
   }
 
-  /* test: start
-  ftest.close();
-  // test: end */
-
-
   /* exit */
-  // These commands will free the previously allocated vector (xtp) and matrix (pol_vec).
+  // free the temporary vectors (xtp, ftp)
   gsl_vector_free(xtp);
   gsl_vector_free(ftp);
   return;
@@ -1340,7 +1116,6 @@ double PolarPair48::get_energy(const gsl_vector *xi, const gsl_vector *xj, const
 
   gsl_vector_free(xij);
   return energy;
-
 }
 
 void PolarPair48::get_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force){
@@ -1408,18 +1183,7 @@ void PolarPair48::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
   xtp = gsl_vector_calloc(3);
   ftp = gsl_vector_calloc(3);
 
-
-  /* fixed orientation
-  double freq = 2.*3.14158/9.;
-  for (size_t n=0; n<m_pol_vec->size1; n++){
-    double ux = cos(n*freq);
-    double uy = sin(n*freq);
-    gsl_matrix_set(m_pol_vec, n, 0, ux);
-    gsl_matrix_set(m_pol_vec, n, 1, uy);
-  }
-  // */
-
-  //* chain polarity vector
+  // chain polarity vector
   for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
   {
     size_t istart = it->first;                                  // istart assigned to iterator it that points to first (beginning of chain)
@@ -1434,7 +1198,6 @@ void PolarPair48::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     gsl_matrix_set(rot, 1, 0, 1.0);
     gsl_matrix_set(rot, 0, 1, -1.0);
     gsl_matrix_set(rot, 1, 1, 0.0);
-
 
     // INTERIOR BEADS ([istart + 1] to [iend - 1])
     for (size_t i = istart + 1; i < iend; i++)
@@ -1485,13 +1248,6 @@ void PolarPair48::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 
     gsl_matrix_free(rot);
   }
-  //*/
-
-  /* test: start
-  ofstream ftest;
-  ftest.open("test.dat", ofstream::app);
-  ftest << scientific << setprecision(8) << left;
-  // test: end */
 
   // Loop neighbors
   for (size_t i=0; i<m_neighbors->m_npair; ++i)
@@ -1514,46 +1270,10 @@ void PolarPair48::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     get_force(&xn.vector, &xm.vector, &pn.vector, &pm.vector, ftp);
     linalg_daxpy(-1.0, ftp, &fn.vector);
     linalg_daxpy(1.0, ftp, &fm.vector);
-
-    /* test: start
-    gsl_vector_memcpy(xtp, &xm.vector);
-    linalg_daxpy(-1.0, &xn.vector, xtp);
-    double r = linalg_dnrm2(xtp);
-    double phi_tp = utils::get_angle_2d(xtp);
-    double ti_tp = utils::get_angle_2d(&pn.vector);
-    double tj_tp = utils::get_angle_2d(&pm.vector);
-    double A = get_A(phi_tp, ti_tp, tj_tp);
-    double fnorm = linalg_dnrm2(ftp);
-    if (fabs(fnorm) > 1.0e-10){
-      ftest << setw(18) << n;
-      ftest << setw(18) << m;
-      ftest << setw(18) << gsl_vector_get(&xn.vector, 0);
-      ftest << setw(18) << gsl_vector_get(&xn.vector, 1);
-      ftest << setw(18) << gsl_vector_get(&xm.vector, 0);
-      ftest << setw(18) << gsl_vector_get(&xm.vector, 1);
-      ftest << setw(18) << gsl_vector_get(&pn.vector, 0);
-      ftest << setw(18) << gsl_vector_get(&pn.vector, 1);
-      ftest << setw(18) << gsl_vector_get(&pm.vector, 0);
-      ftest << setw(18) << gsl_vector_get(&pm.vector, 1);
-      ftest << setw(18) << gsl_vector_get(ftp, 0);
-      ftest << setw(18) << gsl_vector_get(ftp, 1);
-      ftest << setw(18) << gsl_vector_get(ftp, 2);
-      ftest << setw(18) << utp;
-      ftest << setw(18) << A;
-      ftest << setw(18) << r;
-      ftest << setw(18) << fnorm;
-      ftest << endl;
-    }
-    // test: end */
   }
 
-  /* test: start
-  ftest.close();
-  // test: end */
-
-
   /* exit */
-  // These commands will free the previously allocated vector (xtp) and matrix (pol_vec).
+  // free the temporary vectors (xtp, ftp)
   gsl_vector_free(xtp);
   gsl_vector_free(ftp);
   return;
@@ -1637,60 +1357,6 @@ double PolarPair48_2site::potential_deriv(double r, double eps, double rc, doubl
   else {
     return 0.0;
   }
-}
-
-double PolarPair48_2site::get_energy(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj){
-  double r, energy;
-  gsl_vector *xij(0), *yij(0), *xtp(0);
-
-  energy = 0.0;
-  xij = gsl_vector_calloc(3);
-  yij = gsl_vector_calloc(3);
-  xtp = gsl_vector_calloc(3);
-
-  gsl_vector_memcpy(xij, xj);
-  linalg_daxpy(-1.0, xi, xij);
-
-  // narrow-narrow
-  gsl_vector_memcpy(xtp, nj);
-  linalg_daxpy(-1.0, ni, xtp);
-  gsl_vector_memcpy(yij, xij);
-  linalg_daxpy(-m_rho_n, xtp, yij);
-  r = linalg_dnrm2(yij);
-  energy += potential(r, m_eps_nn, m_rc_nn, m_r0_nn);
-
-  // wide-wide
-  gsl_vector_memcpy(xtp, nj);
-  linalg_daxpy(-1.0, ni, xtp);
-  gsl_vector_memcpy(yij, xij);
-  linalg_daxpy(m_rho_w, xtp, yij);
-  r = linalg_dnrm2(yij);
-  energy += potential(r, m_eps_ww, m_rc_ww, m_r0_ww);
-
-  // narrow-wide
-  gsl_vector_set_all(xtp, 0.0);
-  linalg_daxpy(m_rho_w, nj, xtp);
-  linalg_daxpy(m_rho_n, ni, xtp);
-  gsl_vector_memcpy(yij, xij);
-  linalg_daxpy(1.0, xtp, yij);
-  r = linalg_dnrm2(yij);
-  energy += potential(r, m_eps_nw, m_rc_nw, m_r0_nw);
-
-  // wide-narrow
-  gsl_vector_set_all(xtp, 0.0);
-  linalg_daxpy(m_rho_n, nj, xtp);
-  linalg_daxpy(m_rho_w, ni, xtp);
-  gsl_vector_memcpy(yij, xij);
-  linalg_daxpy(-1.0, xtp, yij);
-  r = linalg_dnrm2(yij);
-  energy += potential(r, m_eps_nw, m_rc_nw, m_r0_nw);
-
-  // exit
-  gsl_vector_free(xij);
-  gsl_vector_free(yij);
-  gsl_vector_free(xtp);
-  return energy;
-
 }
 
 double PolarPair48_2site::get_energy_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force){
@@ -1791,8 +1457,7 @@ void PolarPair48_2site::energy_force(gsl_matrix *x, double *u, gsl_matrix *force
   xtp = gsl_vector_calloc(3);
   ftp = gsl_vector_calloc(3);
 
-
-  //* chain polarity vector
+  // chain polarity vector
   for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
   {
     size_t istart = it->first; // istart assigned to iterator it that points to first (beginning of chain)
@@ -1807,7 +1472,6 @@ void PolarPair48_2site::energy_force(gsl_matrix *x, double *u, gsl_matrix *force
     gsl_matrix_set(rot, 1, 0, 1.0);
     gsl_matrix_set(rot, 0, 1, -1.0);
     gsl_matrix_set(rot, 1, 1, 0.0);
-
 
     // INTERIOR BEADS ([istart + 1] to [iend - 1])
     for (size_t i = istart + 1; i < iend; i++)
@@ -1858,7 +1522,6 @@ void PolarPair48_2site::energy_force(gsl_matrix *x, double *u, gsl_matrix *force
 
     gsl_matrix_free(rot);
   }
-  //*/
 
   // Loop neighbors
   for (size_t i=0; i<m_neighbors->m_npair; ++i)

@@ -15,7 +15,6 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <limits>
 #include <vector>
 #include <map>
 
@@ -47,11 +46,8 @@ namespace fs = boost::filesystem;
 namespace yc = yaml_config;
 
 //** GLOBAL
-double macheps=std::numeric_limits<double>::epsilon();
-vector<string> required_parameters = vector<string>({"lx", "ly", "lz", "eps_LJ","npart_max", "dt", "itermax", "idump_thermo", "idump_pos"});
 /* random number generator type */
 const gsl_rng_type* RDT = gsl_rng_ranlxs1;
-//const gsl_rng_type* RDT = gsl_rng_mt19937;
 
 //** MAIN
 int main(int argc, char *argv[]){
@@ -67,13 +63,6 @@ int main(int argc, char *argv[]){
   IntegrationParams iparams;
   bool nlist_updated=false;
   size_t iter=0;
-
-  /* test: start
-  ofstream ftest;
-  ftest.open("test.dat", ofstream::out);
-  ftest << "";
-  ftest.close();
-  // test: end */
 
 //-----------------------------------------------
 // INITIALIZATION
@@ -93,7 +82,7 @@ int main(int argc, char *argv[]){
 
   /* load parameters */
   cout << "Enter parameters:" << endl;
-  config = YAML::Load(cin);  // load yaml from standart input
+  config = YAML::Load(cin);  // load yaml from standard input
   cout << config << endl;
 
   /* initialize random number generator */
@@ -270,7 +259,7 @@ int main(int argc, char *argv[]){
       world->dump_polarity_vectors(state_path.string());
     }
 
-    if (nlist_updated) {
+    if (iparams.neighbor && nlist_updated) {
       convert.clear();
       convert.str("");
       convert << trajname << setw(iparams.iterwidth) << setfill('0') << setprecision(0) << fixed << dec << iter;
@@ -281,7 +270,6 @@ int main(int argc, char *argv[]){
     }
 
     /* step */
-    // cout << "iter = " << iter << endl;
     stepper->step();
 
     /* update energy */
@@ -289,10 +277,11 @@ int main(int argc, char *argv[]){
     world->update_energy_kinetics();
 
     /* update neighbor list */
-    // if ( world->check_neighbor_lists() || (iter % iparams.ineighbor_build == 0) ) {
-    // the check method doesn't work well so far. To make it work I would need to distinguish
-    // rskin from rcut. rskin could be a fraction of rcut. Then yes, re-build when one atom
-    // has moved more than the skin distance.
+    // Rebuild at a fixed interval. A displacement-based check
+    // (MDWorld::check_neighbor_lists) is not used: it doesn't work well so
+    // far. To make it work I would need to distinguish rskin from rcut. rskin
+    // could be a fraction of rcut. Then yes, re-build when one atom has moved
+    // more than the skin distance.
     if ( iter % iparams.ineighbor_build == 0 ) {
       world->update_neighbor_lists(iter);
       nlist_updated = true;
@@ -311,15 +300,19 @@ int main(int argc, char *argv[]){
   convert.str("");
   convert << trajname << setw(iparams.iterwidth) << setfill('0') << setprecision(0) << fixed << dec << iter;
   // conf dump -- standard
-  state_path = traj_dat;
-  state_path /=  convert.str();
-  state_path += ".dat";
-  world->dump_dat(state_path.string());
+  if (iparams.pos_dat) {
+    state_path = traj_dat;
+    state_path /=  convert.str();
+    state_path += ".dat";
+    world->dump_dat(state_path.string());
+  }
   // conf dump -- xyz format
-  state_path = traj_xyz;
-  state_path /=  convert.str();
-  state_path += ".xyz";
-  world->dump_xyz(state_path.string(), iter);
+  if (iparams.pos_xyz) {
+    state_path = traj_xyz;
+    state_path /=  convert.str();
+    state_path += ".xyz";
+    world->dump_xyz(state_path.string(), iter);
+  }
   // polarity dump -- xyz format
   state_path = traj_polarity;
   state_path /=  convert.str();

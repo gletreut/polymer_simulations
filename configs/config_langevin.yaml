@@ -1,68 +1,67 @@
+# Example configuration for bin/simu_langevin (read from standard input):
+#   bin/simu_langevin [<initial conf .dat|.xyz>] < config_langevin.yaml
 MDWorld:
-        npart: 100
-        gamma: 1.0
-        temp: 1.0
-        mass: 1.0
-        box: [7, 7, 7]
+        dim: 3                  # dimension of the dynamics (2 or 3)
+        npart: 100              # number of particles
+        gamma: 1.0              # friction coefficient
+        temp: 1.0               # temperature (k_B T)
+        mass: 1.0               # particle mass
+        box: [7, 7, 7]          # box size [lx, ly, lz], centered on the origin
         init_pos:
-                mode: lattice
-                dist: 1.123
+                mode: lattice   # only mode available
+                dist: 1.123     # lattice spacing
 forcefields:
-#        ConfinmentBox:
+#        ConfinementBox:        # LJ walls at the box faces
 #                sigma: 1.0
 #                epsilon: 1.0
-#        ConfinmentSphere:
+#        ConfinementSphere:     # LJ wall on a sphere centered on the origin
 #                radius: 100
 #                sigma: 1.0
 #                epsilon: 1.0
-#        PolymerGaussian:
+#        PolymerGaussian:       # Gaussian chain on particles [offset, offset+N)
 #                offset: 0
 #                N: 100
-#                b: 1.0
-        PolymerHarmonic:
+#                b: 1.0         # bond length
+        PolymerHarmonic:        # harmonic bonds on particles [offset, offset+N)
                 offset: 0
                 N: 100
-                ke: 200
-                r0: 1.
+                ke: 200         # spring constant
+                r0: 1.          # rest length
 #        PolymerFENE:
 #                offset: 0
 #                N: 100
 #                ke: 30
-#                rc: 1.5
-#                sigma: 1.0
-#                epsilon: 1.0
-        PolymerKratkyPorod:
+#                rc: 1.5        # maximal bond extension
+#                sigma: 1.0     # LJ diameter
+#                epsilon: 1.0   # LJ energy scale
+        PolymerKratkyPorod:     # bending stiffness on particles [offset, offset+N)
                 offset: 0
                 N: 100
-                lp: 3.0
-#        GEMField:
-#                offset: 0
-#                N: 100
-#                b: 1.0
-#                kmat_fpath: kmat.in
+                lp: 3.0         # persistence length (in bond lengths)
 constraints:
-        PointConstraint:
+        PointConstraint:        # particle <index> fixed at <point>
                 index: 0
                 point: [0,0,0]
-        AxisConstraint:
+        AxisConstraint:         # particle <index> moves on the line (point, axis)
                 index: 1
                 point: [0,0,0]
                 axis: [1.,0,0]
-        PlaneConstraint:
+        PlaneConstraint:        # particle <index> moves in the plane (point, normal direction)
                 index: 2
                 point: [0,0,0]
                 direction: [0,0,1.]
 stepper:
         dt: 0.01
-        #method: MD_VVerlet
-        method: Lang_VVerlet
+        method: Lang_VVerlet    # Lang_VVerlet (Langevin) or MD_VVerlet (no noise)
 integration:
-        itermax: 1.0e6
+        itermax: 1.0e6          # number of steps
         thermo:
-                idump: 1.0e3
+                idump: 1.0e3    # write thermo.dat every idump steps
         positions:
-                idump: 1.0e3
-                xyz: true
-                dat: true
+                idump: 1.0e3    # write configurations every idump steps
+                xyz: true       # trajectory/xyz/*.xyz
+                dat: true       # trajectory/dat/*.dat
+        neighbor_build: 10      # rebuild neighbor lists every n steps
+        neighbor: false         # dump neighbor lists to trajectory/neighbor/
 
-seed: 123
+seed: 123                       # random number generator seed

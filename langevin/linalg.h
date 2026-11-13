@@ -40,13 +40,8 @@ void    linalg_daxpy   (const double alpha, const gsl_vector *a,
                         gsl_vector *b);
 void    linalg_daxpy   (const double alpha, const gsl_matrix *a,
                         gsl_matrix *b);
-void    linalg_dgemm  (int transA, int transB,
-                       const double alpha, const gsl_matrix *A,
-                       const gsl_matrix *B, const double beta,
-                       gsl_matrix *C);
 void    linalg_dgemv  (int transA, const double alpha,
                        const gsl_matrix *A, const gsl_vector *v,
                        const double beta, gsl_vector *w);
-void    linalg_invert (const gsl_matrix *a, gsl_matrix *ainv);
 
 #endif

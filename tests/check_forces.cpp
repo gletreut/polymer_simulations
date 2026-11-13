@@ -264,8 +264,8 @@ int main() {
     for (size_t i=0; i<N; ++i)
       for (size_t a=0; a<3; ++a)
         gsl_matrix_set(x, i, a, uniform(rng, -L + 0.88, L - 0.88));
-    ConfinmentBox ff(-L, L, -L, L, -L, L, 1.0, 1.0);
-    report("ConfinmentBox", fd_error(wrap(&ff), x, 3));
+    ConfinementBox ff(-L, L, -L, L, -L, L, 1.0, 1.0);
+    report("ConfinementBox", fd_error(wrap(&ff), x, 3));
     gsl_matrix_free(x);
   }
   {
@@ -280,8 +280,8 @@ int main() {
       } while (r > R - 0.88 || r < 0.5);
       for (size_t a=0; a<3; ++a) gsl_matrix_set(x, i, a, v[a]);
     }
-    ConfinmentSphere ff(R, 1.0, 1.0);
-    report("ConfinmentSphere", fd_error(wrap(&ff), x, 3));
+    ConfinementSphere ff(R, 1.0, 1.0);
+    report("ConfinementSphere", fd_error(wrap(&ff), x, 3));
     gsl_matrix_free(x);
   }
 

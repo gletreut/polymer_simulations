@@ -30,7 +30,6 @@
 #include "linalg.h"
 #include "utils.h"
 
-
 class ForceField {
   /*
    * Virtual class defining a force field.
@@ -40,10 +39,9 @@ class ForceField {
     virtual void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces) = 0;
 };
 
-
-class ConfinmentBox : public ForceField {
+class ConfinementBox : public ForceField {
   /*
-   * Class defining a force field representing a box confinment
+   * Class defining a force field representing a box confinement
    */
   public:
     double m_xlo, m_xhi, m_ylo, m_yhi, m_zlo, m_zhi;
@@ -51,8 +49,8 @@ class ConfinmentBox : public ForceField {
     double m_eps;       // energy scale for LJ
 
     /* constructor and destructor */
-    ConfinmentBox(double xlo, double xhi, double ylo, double yhi, double zlo, double zhi, double sigma=1.0, double eps=1.0);
-    ~ConfinmentBox();
+    ConfinementBox(double xlo, double xhi, double ylo, double yhi, double zlo, double zhi, double sigma=1.0, double eps=1.0);
+    ~ConfinementBox();
 
     /* methods */
     double energy_LJ_scal(double r);
@@ -65,10 +63,9 @@ class ConfinmentBox : public ForceField {
     double m_rc_LJ;
 };
 
-
-class ConfinmentSphere : public ForceField {
+class ConfinementSphere : public ForceField {
   /*
-   * Class defining a force field representing a spherical confinment
+   * Class defining a force field representing a spherical confinement
    */
   public:
     double m_radius;
@@ -76,8 +73,8 @@ class ConfinmentSphere : public ForceField {
     double m_eps;       // energy scale for LJ
 
     /* constructor and destructor */
-    ConfinmentSphere(double radius, double sigma=1.0, double eps=1.0);
-    ~ConfinmentSphere();
+    ConfinementSphere(double radius, double sigma=1.0, double eps=1.0);
+    ~ConfinementSphere();
 
     /* methods */
     double energy_LJ_scal(double r);
@@ -89,7 +86,6 @@ class ConfinmentSphere : public ForceField {
     double m_fpref;
     double m_rc_LJ;
 };
-
 
 class PolymerGaussian : public ForceField {
   /*
@@ -116,7 +112,6 @@ class PolymerGaussian : public ForceField {
     double m_fpref;
 };
 
-
 class PolymerHarmonic : public ForceField {
   /*
    * Class defining a polymer force field.
@@ -127,12 +122,11 @@ class PolymerHarmonic : public ForceField {
     /* attributes */
     size_t m_offset;    // index of first monomer
     size_t m_N;         // number of monomers
-    double m_ke;        // energy / b^2 for FENE bond
-    double m_r0;
+    double m_ke;        // spring constant (energy / length^2)
+    double m_r0;        // rest length
     gsl_spmatrix_uint *m_bonds; // bond selector
 
     /* constructor and destructor */
-    // PolymerHarmonic(size_t offset, size_t N, double ke=100, double r0=1.);
     PolymerHarmonic(size_t offset, size_t N, double ke, double r0, gsl_spmatrix_uint *bonds);
     ~PolymerHarmonic();
 
@@ -142,7 +136,6 @@ class PolymerHarmonic : public ForceField {
   private:
     double m_fpref;
 };
-
 
 class PolymerFENE : public ForceField {
   /*
@@ -161,7 +154,6 @@ class PolymerFENE : public ForceField {
     gsl_spmatrix_uint *m_bonds; // bond selector
 
     /* constructor and destructor */
-    // PolymerFENE(size_t offset, size_t N, double ke=30.0, double rc=1.5, double sigma=1.0, double eps=1.0);
     PolymerFENE(size_t offset, size_t N, double ke, double rc, double sigma, double eps, gsl_spmatrix_uint *bonds);
     ~PolymerFENE();
 
@@ -176,7 +168,6 @@ class PolymerFENE : public ForceField {
     double m_fpref_LJ;
     double m_rc_LJ;
 };
-
 
 class PolymerKratkyPorod : public ForceField {
   /*
@@ -198,41 +189,6 @@ class PolymerKratkyPorod : public ForceField {
     /* methods */
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 };
-
-
-
-// GEMField Class ----------------------------------------------------------------------------------------------------------------------------------------------------------
-// would need to deal with bonded interactions for the following potential (not sparse)
-// class GEMField : public ForceField {
-//   /*
-//    * Class defining a Gaussian Effective Model force field.
-//    * It consists of elastic interactions to be overlaid on a Polymer force
-//    * field. It is parametrized by a matrix W such that the potential is:
-//    *   \beta U(X, Y, Z) = 3/(2b^2) [ X^T W X + Y^T W Y + Z^T W Z],
-//    *   where X, Y and Z are vectors of size N.
-//    */
-//
-//   public:
-//     /* attributes */
-//     size_t m_offset;    // index of first monomer
-//     size_t m_N;         // number of monomers
-//     double m_b;
-//     gsl_matrix *m_W;    // interaction potential matrix.
-//
-//     /* constructor and destructor */
-//     GEMField(size_t offset, size_t N, double b, std::string filepath);
-//     ~GEMField();
-//
-//     /* methods */
-//     void K2W(const gsl_matrix *K, gsl_matrix *W);
-//     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-//
-//   private:
-//     double m_fpref;
-//     gsl_vector *m_fa;
-// };
-//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 class SoftCore : public ForceField {
   /*
@@ -282,7 +238,6 @@ class PairLJ : public ForceField {
     double energy_LJ_scal(double r);
     double force_LJ_scal(double r);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-
 };
 
 class PolarPairLJ : public PairLJ {
@@ -309,7 +264,6 @@ class PolarPairLJ : public PairLJ {
     double energy_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
     void force_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-
 };
 
 class PolarPair48 : public ForceField {
@@ -339,7 +293,6 @@ class PolarPair48 : public ForceField {
     double get_energy(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
     void get_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-
 };
 
 class PolarPair48_2site : public ForceField {
@@ -371,10 +324,7 @@ class PolarPair48_2site : public ForceField {
     /* methods */
     double potential(double r, double eps, double rc, double r0);
     double potential_deriv(double r, double eps, double rc, double r0);
-    double get_energy(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
     double get_energy_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
-    // void get_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
-
 };
 #endif

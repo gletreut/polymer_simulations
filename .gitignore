@@ -1,2 +1,14 @@
 .pixi/
 *.o
+*.d
+.claude/
+trajectory/
+thermo*.dat
+positions_final.dat
+pol.xyz
+__pycache__/
+*.pyc
+*.swp
+*~
+!tests/golden/thermo.dat
+!tests/golden/positions_final.dat

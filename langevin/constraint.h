@@ -35,7 +35,6 @@ class Constraint {
     virtual ~Constraint();
     virtual void constrain_x(gsl_matrix *x) = 0;
     virtual void constrain_v(gsl_matrix *v) = 0;
-    virtual void constrain_force(gsl_matrix *forces) = 0;
 };
 
 class PointConstraint : public Constraint {
@@ -54,11 +53,9 @@ class PointConstraint : public Constraint {
     /* methods */
     void constrain_x(gsl_matrix *x);
     void constrain_v(gsl_matrix *v);
-    void constrain_force(gsl_matrix *forces);
 
   private:
     gsl_vector *m_v0;
-    gsl_vector *m_f0;
 };
 
 class AxisConstraint : public Constraint {
@@ -78,12 +75,11 @@ class AxisConstraint : public Constraint {
     /* methods */
     void constrain_x(gsl_matrix *x);
     void constrain_v(gsl_matrix *v);
-    void constrain_force(gsl_matrix *forces);
 };
 
 class PlaneConstraint : public Constraint {
   /*
-   * Class defining a plan constraint.
+   * Class defining a plane constraint.
    * An atom is constrained to move within a plane
    */
   public:
@@ -98,7 +94,6 @@ class PlaneConstraint : public Constraint {
     /* methods */
     void constrain_x(gsl_matrix *x);
     void constrain_v(gsl_matrix *v);
-    void constrain_force(gsl_matrix *forces);
 
   private:
     gsl_vector *m_vtp;

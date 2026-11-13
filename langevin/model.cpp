@@ -13,28 +13,6 @@
 using namespace std;
 
 //****************************************************************************
-//* LangevinSimulation
-//****************************************************************************
-//LangevinSimulation::LangevinSimulation(size_t itermax, double temp, double dt) :
-//  m_itermax(itermax), m_temp(temp), m_dt(dt) {
-//  m_s2dt = sqrt(2.*m_dt);
-//}
-//
-//LangevinSimulation::~LangevinSimulation(){
-//}
-//
-//void
-//LangevinSimulation::update() {
-//  /*
-//   * Update all objects
-//   */
-//  for (vector<MDWorld>::iterator it=m_objs.begin(); it != m_objs.end(); ++it){
-//    it->update();
-//  }
-//  return;
-//}
-
-//****************************************************************************
 //* MDWorld
 //****************************************************************************
 MDWorld::MDWorld(size_t npart, double lx, double ly, double lz,
@@ -66,8 +44,6 @@ void MDWorld::init() {
   gsl_matrix_set_all(m_v, 0.0);
   m_forces = gsl_matrix_calloc(m_npart, 3);
   gsl_matrix_set_all(m_forces, 0.0);
-  m_forces_tp = gsl_matrix_calloc(m_npart, 3);
-  gsl_matrix_set_all(m_forces_tp, 0.0);
 
   // vectors
   m_ffields.clear();
@@ -92,9 +68,6 @@ void MDWorld::clear() {
   }
   if (m_forces != nullptr){
     gsl_matrix_free(m_forces);
-  }
-  if (m_forces_tp != nullptr){
-    gsl_matrix_free(m_forces_tp);
   }
 
   /* delete forcefields */
@@ -130,15 +103,10 @@ void MDWorld::init_positions_lattice(double delta){
    */
 
   size_t counter;
-  // size_t nx, ny, nz;
-  //double delta;
   double x,y,z,u;
   int dirx, diry;
 
   u =pow(2.,1./6);
-  // nx = (m_lx-2*u)/delta;
-  // ny = (m_ly-2*u)/delta;
-  // nz = (m_lz-2*u)/delta;
 
   dirx = diry = 1;
   x = -0.5*m_lx + u;
@@ -166,7 +134,6 @@ void MDWorld::init_positions_lattice(double delta){
         if (m_dim == 3) {
           double znew = z + delta;
           if (fabs(znew) > 0.5*m_lz-u) {
-            // break;
             throw runtime_error("Box is too small to position all particles on a lattice!");
           }
           else {
@@ -174,7 +141,6 @@ void MDWorld::init_positions_lattice(double delta){
           }
         }
         else {
-          // break;
           throw runtime_error("Box (2d) is too small to position all particles on a lattice!");
         }
       }
@@ -186,35 +152,6 @@ void MDWorld::init_positions_lattice(double delta){
       x = xnew;
     }
   }
-  // for (size_t ix = 1; ix < nx; ++ix){
-  //   for (size_t iy = 1; iy < ny; ++iy){
-  //     gsl_matrix_set(m_x, counter, 0, x);
-  //     gsl_matrix_set(m_x, counter, 1, y);
-  //     if (m_dim == 3) {
-  //       for (size_t iz = 1; iz < nz; ++iz){
-  //         z = -0.5*m_lz + u + iz*delta;
-  //         gsl_matrix_set(m_x, counter, 2, z);
-  //         counter += 1;
-  //
-  //         if (counter == m_npart)
-  //           break;
-  //       }
-  //     }
-  //     else {
-  //       counter += 1;
-  //
-  //       if (counter == m_npart)
-  //         break;
-  //     }
-  //   }
-  //   if (counter == m_npart)
-  //     break;
-  // }
-  //
-  // if (counter < m_npart) {
-  //   throw runtime_error("Box is too small to position all particles on a lattice!");
-  // }
-
   cout << "finished lattice init" << endl;
   return;
 }
@@ -295,7 +232,6 @@ void MDWorld::update_energy_forces(){
 
   /* iterate over force fields */
   for (vector<ForceField*>::iterator it=m_ffields.begin(); it!=m_ffields.end(); ++it){
-      // cout << typeid((*it)).name() << endl;
       (*it)->energy_force(m_x, &m_energy_pot, m_forces);
   }
 
@@ -577,44 +513,14 @@ MDWorld::dump_neighbors(ostream &mystream){
    * Dump neighbor list
    */
 
-  // initialize
-  // size_t n, m;
-  // double r;
-  // gsl_vector *xtp(0);
-  // xtp = gsl_vector_calloc(3);
-
 	if (m_npart == 0)
 		throw invalid_argument("MDWorld is empty!");
-
 
   mystream << left << dec << fixed;
   for (vector<NeighborList*>::iterator it=m_neighbors.begin(); it!=m_neighbors.end(); ++it){
     (*it)->dump(mystream);
-    // for (size_t i=0; i<(*it)->m_npair; i++){
-    //   n = gsl_matrix_uint_get((*it)->m_pairs,i,0);
-    //   m = gsl_matrix_uint_get((*it)->m_pairs,i,1);
-    //   gsl_vector_view xn = gsl_matrix_row(m_x, n);
-    //   gsl_vector_view xn_ref = gsl_matrix_row((*it)->m_xref, n);
-    //   gsl_vector_memcpy(xtp, &xn_ref.vector);
-    //   linalg_daxpy(-1, &xn.vector, xtp);
-    //   r = linalg_dnrm2(xtp);
-    //
-    //   mystream << setw(10) << setprecision(0) << noshowpos << i;
-    //   mystream << setw(10) << setprecision(0) << noshowpos << n;
-    //   mystream << setw(10) << setprecision(0) << noshowpos << m;
-    //   mystream << setw(20) << setprecision(6) << noshowpos << r;
-    //   for (size_t a=0; a<3; ++a){
-    //     mystream << setw(20) << setprecision(6) << noshowpos << gsl_vector_get(&xn.vector,a);
-    //   }
-    //   for (size_t a=0; a<3; ++a){
-    //     mystream << setw(20) << setprecision(6) << noshowpos << gsl_vector_get(&xn_ref.vector,a);
-    //   }
-    //   mystream << endl;
-    // }
-
-      mystream << endl;
+    mystream << endl;
   }
-  // gsl_vector_free(xtp);
   return;
 }
 

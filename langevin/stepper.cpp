@@ -88,7 +88,7 @@ void MDStepper_VVerlet::step() {
    * p437.
    */
 
-  // the algorithm assume that the forces are updated with respect to the
+  // the algorithm assumes that the forces are updated with respect to the
   // current positions
   // update velocities -- first half-step
   linalg_dscal(m_gam_m, m_v);             // V <- (1 - \gamma dt/2) V
@@ -138,7 +138,7 @@ LangStepper_VVerlet::~LangStepper_VVerlet(){
 
 void LangStepper_VVerlet::add_brownian_forces(){
   /*
-   * Compute and brownian forces to velocities
+   * Compute and add brownian forces to velocities
    */
 
   // declaration
@@ -148,7 +148,7 @@ void LangStepper_VVerlet::add_brownian_forces(){
   // initialize
   rforce = gsl_vector_calloc(3);
 
-  // iterate over atomes
+  // iterate over atoms
   for (size_t i=0; i<m_v->size1; ++i){
     // compute random force
     for (size_t a=0; a<m_world->m_dim; ++a){
@@ -174,7 +174,7 @@ void LangStepper_VVerlet::step() {
    * p437.
    */
 
-  // the algorithm assume that the forces are updated with respect to the
+  // the algorithm assumes that the forces are updated with respect to the
   // current positions
   // update velocities -- first half-step
   linalg_dscal(m_gam_m, m_v);             // V <- (1 - \gamma dt/2) V

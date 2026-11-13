@@ -54,7 +54,7 @@ stepper.o: stepper.h model.h linalg.h utils.h stepper.cpp
 linalg.o: linalg.h linalg.cpp
 	$(CC) $(CFLAGS) -c linalg.cpp
 
-utils.o: utils.h utils.tpp utils.cpp
+utils.o: utils.h utils.cpp
 	$(CC) $(CFLAGS) -c utils.cpp
 
 yaml_config.o: yaml_config.h model.h stepper.h integration.h forcefield.h constraint.h neighborlist.h yaml_config.cpp

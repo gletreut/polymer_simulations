@@ -4,7 +4,7 @@
 //  2019-06-22
 //  G. Le Treut - Jun Lab, UC San Diego.
 //
-//  file: utils.h
+//  file: yaml_config.h
 //----------------------------------------------------------------------------
 
 #include <cstdlib>
@@ -33,7 +33,6 @@
 
 // yaml_config
 namespace yaml_config {
-  std::string yamltype_str(YAML::NodeType::value type);
   void init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world);
   void init_rng(YAML::Node config, gsl_rng *rng);
   void init_stepper(YAML::Node config, gsl_rng *rng, MDWorld *world, MDStepper* &stepper);

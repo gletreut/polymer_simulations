@@ -4,10 +4,6 @@
 // Created by: Guillaume Le Treut
 //****************************************************************************
 
-//#define GSL
-//#define LAPACK
-//#define MKL
-
 /* custom files */
 #include "linalg.h"
 
@@ -93,55 +89,6 @@ linalg_daxpy(const double alpha, const gsl_matrix *a, gsl_matrix *b){
 }
 
 void
-linalg_dgemm(int transA, int transB, const double alpha, const gsl_matrix *A, const gsl_matrix *B, const double beta, gsl_matrix *C){
-
-#ifdef GSL
-  CBLAS_TRANSPOSE_t transA_, transB_;
-  if (transA == 0)
-    transA_ = CblasNoTrans;
-  else
-    transA_=CblasTrans;
-  if (transB == 0)
-    transB_ = CblasNoTrans;
-  else
-    transB_=CblasTrans;
-
-  gsl_blas_dgemm(transA_,transB_,alpha,A,B,beta,C);
-#elif defined(LAPACK) || defined(MKL)
-  int M,N,K,LDA,LDB,LDC;
-  CBLAS_TRANSPOSE transA_, transB_;
-  if (transA == 0){
-    transA_ = CblasNoTrans;
-    M = A->size1;
-    K = A->size2;
-    LDA = K;
-  }
-  else {
-    transA_ = CblasTrans;
-    M = A->size2;
-    K = A->size1;
-    LDA = M;
-  }
-  if (transB == 0){
-    transB_ = CblasNoTrans;
-    N = B->size2;
-    LDB = N;
-  }
-  else {
-    transB_ = CblasTrans;
-    N = B->size1;
-    LDB = K;
-  }
-  LDC = N;
-  cblas_dgemm(CblasRowMajor, transA_, transB_,
-                 M, N, K,
-                 alpha, A->data, LDA, B->data, LDB,
-                 beta, C->data, LDC);
-#endif
-  return;
-}
-
-void
 linalg_dgemv  (int transA, const double alpha,
                const gsl_matrix *A, const gsl_vector *v,
                const double beta, gsl_vector *w){
@@ -172,55 +119,3 @@ linalg_dgemv  (int transA, const double alpha,
 #endif
   return;
 }
-
-void
-linalg_invert(const gsl_matrix *a, gsl_matrix *ainv){
-
-  size_t N;
-
-  N = a->size1;
-  if (a->size2 != N)
-    throw invalid_argument("a must be a square matrix!");
-#ifdef GSL
-  int status;
-  gsl_matrix *lu(0);
-  gsl_permutation *per(0);
-  status=0;
-
-  lu = gsl_matrix_calloc(N,N);
-  per = gsl_permutation_alloc(N);
-
-  gsl_matrix_memcpy(lu,a);
-  gsl_linalg_LU_decomp(lu,per,&status); // LU decomposition of input matrix
-  gsl_linalg_LU_invert(lu,per,ainv);    // inverse x in xinv
-
-  gsl_matrix_free(lu);
-  gsl_permutation_free(per);
-
-#elif defined(LAPACK) || defined(MKL)
-  int INFO,LAYOUT,LDA,LWORK,MONE;
-  double LWKOPT;
-  int *IPIV(0);
-  double *WORK(0);
-
-  INFO = 0;
-  MONE = -1;
-  LAYOUT = LAPACK_ROW_MAJOR;
-  LDA = N;  // row-major layout
-  IPIV = new int[N];
-  gsl_matrix_memcpy(ainv,a);
-
-  INFO = LAPACKE_dgetrf(LAYOUT, N, N, ainv->data, LDA, IPIV);
-  INFO = LAPACKE_dgetri_work(LAYOUT, N, ainv->data, LDA, IPIV, &LWKOPT, MONE ); // query optimal workspace size
-  LWORK = int(LWKOPT);
-  if (LWORK < N)  LWORK = N;
-  WORK = new double[LWORK];
-
-  INFO = LAPACKE_dgetri_work(LAYOUT, N, ainv->data, LDA, IPIV, WORK, LWORK);
-
-  delete[] WORK;
-  delete[] IPIV;
-#endif
-  return;
-}
-

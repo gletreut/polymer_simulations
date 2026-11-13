@@ -340,7 +340,7 @@ cmd.extend("color_123",color_123)
 
 def emphasize_centromer(nc, radius=1.0, color="green"):
     """
-    Empasize the centromer
+    Emphasize the centromere
     """
 
     cmd.select("centromer", "resi {:d}".format(nc))

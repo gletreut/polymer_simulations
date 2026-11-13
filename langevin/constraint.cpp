@@ -1,5 +1,4 @@
 #include "constraint.h"
-//Comment
 using namespace std;
 
 //****************************************************************************
@@ -17,19 +16,16 @@ PointConstraint::PointConstraint(size_t index, double rx, double ry, double rz) 
   /* initialize vectors */
   m_x0 = gsl_vector_calloc(3);
   m_v0 = gsl_vector_calloc(3);
-  m_f0 = gsl_vector_calloc(3);
 
   gsl_vector_set(m_x0, 0, rx);
   gsl_vector_set(m_x0, 1, ry);
   gsl_vector_set(m_x0, 2, rz);
   gsl_vector_set_all(m_v0, 0.0);
-  gsl_vector_set_all(m_f0, 0.0);
 }
 
 PointConstraint::~PointConstraint() {
   gsl_vector_free(m_x0);
   gsl_vector_free(m_v0);
-  gsl_vector_free(m_f0);
 }
 
 void PointConstraint::constrain_x(gsl_matrix *x) {
@@ -54,17 +50,6 @@ void PointConstraint::constrain_v(gsl_matrix *v) {
   return;
 }
 
-void PointConstraint::constrain_force(gsl_matrix *forces) {
-  /*
-   * Project the forces so that there is no acceleration.
-   */
-
-  gsl_vector_view fn = gsl_matrix_row(forces, m_index);
-  gsl_vector_memcpy(&fn.vector, m_f0);
-
-  return;
-}
-
 //****************************************************************************
 // AxisConstraint
 //****************************************************************************
@@ -85,7 +70,6 @@ AxisConstraint::AxisConstraint(size_t index, double rx, double ry, double rz, do
   /* normalize u */
   double unorm = linalg_dnrm2(m_u);
   linalg_dscal(1./unorm, m_u);
-
 }
 
 AxisConstraint::~AxisConstraint() {
@@ -130,23 +114,6 @@ void AxisConstraint::constrain_v(gsl_matrix *v) {
   return;
 }
 
-void AxisConstraint::constrain_force(gsl_matrix *forces) {
-  /*
-   * Project the force to the axis.
-   */
-
-  double fproj;
-
-  gsl_vector_view fn = gsl_matrix_row(forces, m_index);
-
-  // compute axis projection
-  fproj = linalg_ddot(&fn.vector, m_u);
-  gsl_vector_set_all(&fn.vector, 0.0);
-  linalg_daxpy(fproj, m_u, &fn.vector);
-
-  return;
-}
-
 //****************************************************************************
 // PlaneConstraint
 //****************************************************************************
@@ -168,7 +135,6 @@ PlaneConstraint::PlaneConstraint(size_t index, double rx, double ry, double rz, 
   /* normalize u */
   double unorm = linalg_dnrm2(m_u);
   linalg_dscal(1./unorm, m_u);
-
 }
 
 PlaneConstraint::~PlaneConstraint() {
@@ -211,24 +177,6 @@ void PlaneConstraint::constrain_v(gsl_matrix *v) {
 
   // project to plane
   linalg_daxpy(-vproj, m_u, &vn.vector);
-
-  return;
-}
-
-void PlaneConstraint::constrain_force(gsl_matrix *forces) {
-  /*
-   * Project the force on the plane.
-   */
-
-  double fproj;
-
-  gsl_vector_view fn = gsl_matrix_row(forces, m_index);
-
-  // compute projection along perpendicular axis
-  fproj = linalg_ddot(&fn.vector, m_u);
-
-  // project to plane
-  linalg_daxpy(-fproj, m_u, &fn.vector);
 
   return;
 }

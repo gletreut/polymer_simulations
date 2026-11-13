@@ -38,17 +38,16 @@
 class MDWorld {
 	public:
     /* attributes */
-    size_t m_npart, m_npartmax;
+    size_t m_npart;
     double m_lx, m_ly, m_lz;                  // dimensions of the box
     double m_gamma;
     double m_temp;
     double m_mass;
     size_t m_dim;                             // dimension for the dynamics.
     double m_energy_pot, m_energy_kin;
-    // gsl_vector_uint *m_mobile;                // vector storing the status of one particle (mobile:1 or fixed:0)
     gsl_matrix *m_x;                          // positions
     gsl_matrix *m_v;                          // velocities
-    gsl_matrix *m_forces, *m_forces_tp;       // forces
+    gsl_matrix *m_forces;                     // forces
     std::vector<ForceField*> m_ffields;       // list of active force fields (minus gradient of positional potential)
     std::vector<Constraint*> m_constraints;   // list of active constraints
     std::vector<NeighborList*> m_neighbors;   // list of neighbor lists
@@ -70,8 +69,6 @@ class MDWorld {
     void set_constraints();
 
     // update methods
-    //void update_positions();
-    //void update_velocities();
     void update_energy_forces();
     void update_energy_kinetics();
     void constrain_x();
@@ -96,47 +93,6 @@ class MDWorld {
     // miscellaneous
     void print_infos(std::ostream &mystream);
 };
-
-//class Polymer : public MDWorld {
-//	public:
-//    /* attributes */
-//    double m_b; // bond length
-//    double m_lp; // persistence length
-//
-//    /* constructor / destructor */
-//    Polymer(size_t npart, double b, double lp);
-//    ~Polymer();
-//
-//    /* methods */
-//    virtual void force_bonds(std::vector<double[3]> &forces);
-//    void force_bending(std::vector<double[3]> &forces);
-//    void init_line();
-//    void init_conf(std::istream &mystream);
-//};
-
-//class LangevinSimulation {
-//  public:
-//    /* attributes */
-//    size_t m_itermax;
-//    double m_temp;
-//    double m_dt, m_s2dt;
-//    // rng: random number generator
-//    std::vector<MDWorld> m_objs;
-//    // Stepper
-//    // StepperDiffusion
-//
-//    /* constructor / destructor */
-//    LangevinSimulation(size_t itermax, double temp=1.0, double dt=0.001);
-//    ~LangevinSimulation();
-//
-//    /* methods */
-//    void update();
-//};
-
-/*
-double distance(std::vector<double> &ri, std::vector<double> &rj);
-void recenter();
-//*/
 
 #endif
 
