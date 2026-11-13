@@ -17,6 +17,7 @@
 #include <string>
 #include <limits>
 #include <map>
+#include <stdexcept>
 
 #include "model.h"
 #include "utils.h"
@@ -28,7 +29,7 @@ using namespace string_utils;
 double macheps=std::numeric_limits<double>::epsilon();
 
 //** MAIN
-int main(int argc, char *argv[]){
+int main() try {
 	string pathtooutput;
 	stringstream convert;
 	ofstream fpol;
@@ -86,4 +87,8 @@ int main(int argc, char *argv[]){
 //-----------------------------------------------
 	cout << "normal exit" << endl;
 	return 0;
+}
+catch (const std::exception &e) {
+	std::cerr << "ERROR: " << e.what() << std::endl;
+	return 1;
 }

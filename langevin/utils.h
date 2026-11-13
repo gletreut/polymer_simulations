@@ -1,5 +1,5 @@
-#ifndef _UTILS_H
-#define _UTILS_H
+#ifndef POLYSIM_UTILS_H
+#define POLYSIM_UTILS_H
 //----------------------------------------------------------------------------
 //  2019-03-29
 //  G. Le Treut - Jun Lab, UC San Diego.
@@ -27,6 +27,6 @@
 // utils
 namespace utils {
   void print_vector(std::ostream &mystream, gsl_vector *v);
-};
+}
 
 #endif

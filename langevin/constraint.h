@@ -8,8 +8,8 @@
 //*
 //*******************************************************************************
 
-#ifndef _CONSTRAINT_H
-#define _CONSTRAINT_H
+#ifndef POLYSIM_CONSTRAINT_H
+#define POLYSIM_CONSTRAINT_H
 
 #include <cstdlib>
 #include <iostream>

@@ -20,7 +20,7 @@ namespace geometry{
   double algebra_dot_vv(const vector<double> &v1, const vector<double> &v2){
   	/* Return the scalar product of vector v1 and v2 */
 
-  	int m = min(v1.size(), v2.size());
+  	size_t m = min(v1.size(), v2.size());
   	double s = 0.0;
 
   	for (size_t i=0; i<m; i++){
@@ -112,9 +112,6 @@ namespace geometry{
   	double s, t, r;
   	vector<double> u, v, w;
 
-	double a1, b1, c1, d1;
-	double a2, b2, c2, d2;
-
 	if (q1.size() != q2.size())
 		throw invalid_argument("q1 and q2 must have same size!");
 
@@ -173,7 +170,7 @@ namespace geometry{
 	  axis[2] = r[n][2] - r[m][2];
 
 	  try{
-		  for (size_t k=m+1; k<n; k++){
+		  for (int k=m+1; k<n; k++){
 			  u[0] = r[k][0] - r[m][0];
 			  u[1] = r[k][1] - r[m][1];
 			  u[2] = r[k][2] - r[m][2];
@@ -199,7 +196,7 @@ namespace geometry{
 	   * using (i, axis) as the axis, with angle theta
 	   */
 
-	  int N;
+	  size_t N;
 	  vector<double> u(3), v(3);
 	  rn = r;
 

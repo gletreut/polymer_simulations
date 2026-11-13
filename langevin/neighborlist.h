@@ -8,8 +8,8 @@
 //*
 //*******************************************************************************
 
-#ifndef _NEIGHBORLIST_H
-#define _NEIGHBORLIST_H
+#ifndef POLYSIM_NEIGHBORLIST_H
+#define POLYSIM_NEIGHBORLIST_H
 
 #include <cstdlib>
 #include <iostream>

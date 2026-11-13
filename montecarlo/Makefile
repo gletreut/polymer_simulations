@@ -1,10 +1,11 @@
-CXX ?= g++
-CXXFLAGS = -std=c++11 -O3 -Wall
-LDLIBS = -lgsl -lgslcblas -lm
-LDFLAGS =
+CXXFLAGS := -std=c++17 -O3 -Wall -Wextra -g
+DEPFLAGS := -MMD -MP
+LDLIBS := -lgsl -lgslcblas -lm
+LDFLAGS :=
 SRC = main.cpp model.cpp geometry.cpp utils.cpp
 OBJS = $(SRC:.cpp=.o)
 PROG = ../bin/simu_montecarlo
+PREFIX = $(CONDA_PREFIX)
 
 all: $(PROG)
 
@@ -12,13 +13,15 @@ $(PROG): $(OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $@ $(LDFLAGS) $(LDLIBS)
 
-main.o: main.cpp model.h utils.h
-model.o: model.cpp model.h geometry.h
-geometry.o: geometry.cpp geometry.h
-utils.o: utils.cpp utils.h
-
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $<
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+.PHONY: all clean install
 
 clean:
-	rm -f *~ *.o $(PROG) core a.out
+	rm -f *~ *.o *.d $(PROG) core a.out
+
+install: $(PROG)
+	cp $(PROG) $(PREFIX)/bin/
+
+-include $(OBJS:.o=.d)

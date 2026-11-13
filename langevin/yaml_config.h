@@ -1,5 +1,5 @@
-#ifndef _YAML_CONFIG_H
-#define _YAML_CONFIG_H
+#ifndef POLYSIM_YAML_CONFIG_H
+#define POLYSIM_YAML_CONFIG_H
 //----------------------------------------------------------------------------
 //  2019-06-22
 //  G. Le Treut - Jun Lab, UC San Diego.
@@ -39,6 +39,6 @@ namespace yaml_config {
   void init_forcefields(YAML::Node config, MDWorld* &world);
   void init_constraints(YAML::Node config, MDWorld* &world);
   void init_integration_params(YAML::Node config, IntegrationParams &iparams);
-};
+}
 
 #endif

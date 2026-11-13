@@ -9,8 +9,8 @@
 //*
 //*******************************************************************************
 
-#ifndef _MODEL_H
-#define _MODEL_H
+#ifndef POLYSIM_MODEL_H
+#define POLYSIM_MODEL_H
 
 #include <cstdlib>
 #include <iostream>

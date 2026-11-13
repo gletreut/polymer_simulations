@@ -1,7 +1,7 @@
 #define _USE_MATH_DEFINES
 
-#ifndef _GEOMETRY_H
-#define _GEOMETRY_H
+#ifndef POLYSIM_GEOMETRY_H
+#define POLYSIM_GEOMETRY_H
 
 //*******************************************************************************
 //*

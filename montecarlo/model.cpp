@@ -45,7 +45,7 @@ double Polymer::energy(){
 	vector<double> un(3),u(3);
 
 	// 1) chain
-	for (size_t n=2; n<N; n++){
+	for (int n=2; n<N; n++){
 		for (size_t l=0; l<3; l++){
 			un[l]=xyzn[n][l]-xyzn[n-1][l];
 			u[l]=xyzn[n-1][l]-xyzn[n-2][l];
@@ -136,7 +136,7 @@ void Polymer::print_current(ostream &mystream){
 	if (xyz.size() == 0)
 		throw invalid_argument("xyz is empty!");
 
-	for (size_t i=0; i<N;i++){
+	for (int i=0; i<N; i++){
 		mystream << setw(10) << i;
 		mystream << setw(20) << xyz[i][0];
 		mystream << setw(20) << xyz[i][1];

@@ -1,5 +1,5 @@
-#ifndef _STEPPER_H
-#define _STEPPER_H
+#ifndef POLYSIM_STEPPER_H
+#define POLYSIM_STEPPER_H
 //----------------------------------------------------------------------------
 //  2019-03-29
 //  G. Le Treut - Jun Lab, UC San Diego.

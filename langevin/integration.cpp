@@ -23,7 +23,8 @@ IntegrationParams::IntegrationParams() :
 
 void
 IntegrationParams::init() {
-  iterwidth = size_t(log10(itermax)) + 1;
+  // number of decimal digits of itermax (1 when itermax = 0, where log10 diverges)
+  iterwidth = (itermax > 0) ? size_t(log10(itermax)) + 1 : 1;
   return;
 }
 

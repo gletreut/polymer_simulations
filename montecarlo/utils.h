@@ -9,8 +9,8 @@
 //*
 //*******************************************************************************
 
-#ifndef _HOUSEKEEPING_H
-#define _HOUSEKEEPING_H
+#ifndef POLYSIM_UTILS_H
+#define POLYSIM_UTILS_H
 
 #include <cstdlib>
 #include <string>
@@ -23,7 +23,7 @@
 namespace string_utils{
 	std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
 	std::vector<std::string> split(const std::string &s, char delim);
-};
+}
 
 template<typename T>
 void load_map(std::istream &mystream, std::vector<std::vector<T> > &cmap){

@@ -8,8 +8,8 @@
 //*
 //*******************************************************************************
 
-#ifndef _FORCEFIELD_H
-#define _FORCEFIELD_H
+#ifndef POLYSIM_FORCEFIELD_H
+#define POLYSIM_FORCEFIELD_H
 
 #include <cstdlib>
 #include <iostream>

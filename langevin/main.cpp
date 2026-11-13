@@ -17,6 +17,8 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <filesystem>
+#include <stdexcept>
 
 // external library
 // 1) GSL
@@ -24,10 +26,7 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_vector.h>
 
-// 2) BOOST
-#include <boost/filesystem.hpp>
-
-// 3) yaml-cpp
+// 2) yaml-cpp
 #include <yaml-cpp/yaml.h>
 
 // local library
@@ -42,15 +41,24 @@
 
 using namespace std;
 using namespace utils;
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 namespace yc = yaml_config;
 
 //** GLOBAL
 /* random number generator type */
 const gsl_rng_type* RDT = gsl_rng_ranlxs1;
 
+/* remove all entries of a directory */
+static void clear_directory(const fs::path &dir) {
+  vector<fs::path> entries;
+  for (const fs::directory_entry &entry : fs::directory_iterator(dir))
+    entries.push_back(entry.path());
+  for (const fs::path &path : entries)
+    fs::remove_all(path);
+}
+
 //** MAIN
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) try {
 	string pathtooutput, pathtoinitconf, pathname, trajname;
 	stringstream convert;
   fs::path traj_dat, traj_xyz, traj_neighbor, traj_polarity, state_path;
@@ -128,9 +136,7 @@ int main(int argc, char *argv[]){
     }
 
     // remove all existing configurations
-    for (fs::directory_iterator end_dir_it, it(traj_dat); it!=end_dir_it; ++it) {
-      fs::remove_all(it->path());
-    }
+    clear_directory(traj_dat);
   }
 
   // directory for xyz format
@@ -144,9 +150,7 @@ int main(int argc, char *argv[]){
       cout << "Directory created: " << traj_xyz.string() << endl;
     }
     // remove all existing configurations
-    for (fs::directory_iterator end_dir_it, it(traj_xyz); it!=end_dir_it; ++it) {
-      fs::remove_all(it->path());
-    }
+    clear_directory(traj_xyz);
   }
 
   // directory for neighbor lists
@@ -160,9 +164,7 @@ int main(int argc, char *argv[]){
       cout << "Directory created: " << traj_neighbor.string() << endl;
     }
     // remove all existing configurations
-    for (fs::directory_iterator end_dir_it, it(traj_neighbor); it!=end_dir_it; ++it) {
-      fs::remove_all(it->path());
-    }
+    clear_directory(traj_neighbor);
   }
 
   // directory for polarity vector format
@@ -175,9 +177,7 @@ int main(int argc, char *argv[]){
     cout << "Directory created: " << traj_polarity.string() << endl;
   }
   // remove all existing configurations
-  for (fs::directory_iterator end_dir_it, it(traj_polarity); it!=end_dir_it; ++it) {
-    fs::remove_all(it->path());
-  }
+  clear_directory(traj_polarity);
 
   // trajname
   trajname = "state";
@@ -342,4 +342,8 @@ int main(int argc, char *argv[]){
 
 	cout << "normal exit" << endl;
 	return 0;
+}
+catch (const std::exception &e) {
+  std::cerr << "ERROR: " << e.what() << std::endl;
+  return 1;
 }

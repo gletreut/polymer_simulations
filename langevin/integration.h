@@ -1,5 +1,5 @@
-#ifndef _INTEGRATION_H
-#define _INTEGRATION_H
+#ifndef POLYSIM_INTEGRATION_H
+#define POLYSIM_INTEGRATION_H
 //*******************************************************************************
 //*
 //* Langevin Dynamics
