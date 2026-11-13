@@ -14,66 +14,51 @@ def print_stats(vector):
 
 def read_traj_xyz(filepath,istart=None,iend=None):
     """
-    Load trajectory in xyz format.
+    Load a trajectory in the xyz format written by `MDWorld::dump_xyz`:
+    frames of a count line, an `Atoms. Timestep:<iter>` line, then
+    `index x y z` lines. Returns the list of frames and their iterations.
     """
 
     iters = []
     traj = []
-    #pattern="Timestep:(\d+)$"
-    pattern="Timestep: (\d+).*$"
-    fin = open(filepath,'r')
+    pattern = re.compile(r"Timestep:\s*(\d+)")
     state = []
 
     if (istart is None):
         istart = 0
     if (iend is None):
-        iend = 99.9e99
+        iend = float('inf')
 
-    it_current=-1
-    while True:
-        line=fin.readline()
-        if ((line == "")):
-            print("Reached the end of file")
-            break
+    def flush():
+        # store the frame being read, if any
+        if state:
+            iters.append(it_current)
+            traj.append(list(state))
+            print("iter: {:d}. Configuration with {:d} atoms imported".format(it_current,len(state)))
+            state.clear()
 
-        m = re.search(pattern,line)
-        try:
-            it_current = np.uint(m.group(1))
-        except AttributeError:
-            pass
+    it_current = -1
+    with open(filepath,'r') as fin:
+        for line in fin:
+            m = pattern.search(line)
+            if m:
+                it_current = int(m.group(1))
 
-        if (it_current < istart):
-           continue
+            if (it_current < istart):
+                continue
 
-        if (it_current > iend):
-            break
+            if (it_current > iend):
+                break
 
-        tab = line.replace("\n","").split()
-        try:
-            si, x, y, z = tab
-            si = np.uint(si)
-            x = np.float_(x)
-            y = np.float_(y)
-            z = np.float_(z)
-            coord = [si,x,y,z]
-            state.append(coord)
-        except ValueError as e:
-            natoms = len(state)
-            if (natoms > 0):
-                iters.append(it_current)
-                traj.append(state)
-                #print(np.array(state))
-                print("iter: {:d}. Configuration with {:d} atoms imported".format(it_current,natoms))
-                state = []
-    # end loop
-    # add atoms if a state is loaded
-    natoms = len(state)
-    if (natoms > 0):
-        traj.append(state)
-        #print(np.array(state))
-        print("iter: {:d}. Configuration with {:d} atoms imported".format(iters[-1],natoms))
-        state = []
-
+            tab = line.split()
+            try:
+                si, x, y, z = tab
+                state.append([int(si), float(x), float(y), float(z)])
+            except ValueError:
+                # header line: the previous frame is complete
+                flush()
+    # store the last frame
+    flush()
 
     print ("niters = {:d}    nconfs = {:d}".format(len(iters),len(traj)))
     return traj, iters

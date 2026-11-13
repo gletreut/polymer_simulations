@@ -16,7 +16,6 @@ print ("{:<20s}{:<s}".format("origin",origin))
 #py = os.path.join(pymoldir,"py")
 sys.path.append(origin)
 from pymol_functions import *
-from boundingbox import *
 
 ############################################################################
 ## functions
@@ -89,11 +88,11 @@ if not zoom is None:
 
 # draw box
 #if ( ('Lx' in params) and ('Ly' in params) and ('Lz' in params) ):
-#    print "making box!"
+#    print("making box!")
 #    Lx=float(params['Lx'][0])
 #    Ly=float(params['Ly'][0])
 #    Lz=float(params['Lz'][0])
-#    drawBox(-Lx/2.,-Ly/2.,-Lz/2.,Lx/2.,Ly/2.,Lz/2., r=0.5,g=0.5,b=0.5)
+#    draw_box([-Lx/2.,-Ly/2.,-Lz/2.], [Lx/2.,Ly/2.,Lz/2.], rgb=[0.5,0.5,0.5])
 
 if (makemovie):
     make_movie(npts=1001,nmin=nmin,nmax=nmax, imgpx_w=800, imgpx_h=600, framerate=fps)

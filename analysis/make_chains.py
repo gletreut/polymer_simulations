@@ -1,4 +1,4 @@
-#! /bin/python3
+#!/usr/bin/env python3
 
 import os, sys
 from pathlib import Path
@@ -38,7 +38,6 @@ if __name__ == "__main__":
       config = yaml.load(fin, Loader=yaml.loader.FullLoader)
 
     fpath_out = fpath.parent / (fpath.stem + '_helper.yaml')
-    fout = open(fpath_out, 'w')
 
 ########## calculations ##########
     # get box size
@@ -48,66 +47,44 @@ if __name__ == "__main__":
     area = lx*ly
     print(f"lx = {lx}", f"ly = {ly}", f"area = {area}")
 
-    # force fields
-    fout.write('# forcefields\n')
+    # number of chains
     N = namespace.length
     print(f"N = {N}")
     if ( N == 0 ):
       raise ValueError("Must provide a non-zero length for the chains.")
-    noffset = 0
-    nchain = 0
-    phi = 0.
-    dphi = float(N)*np.pi*0.25 / area     # area fraction of one chain
-
     print(f"Target density = {namespace.density}")
-    while phi < namespace.density:
-      if namespace.b:  # Gaussian chain
-        mydir = {}
-        mydir['PolymerGaussian'] = {'offset': noffset, \
-                                    'N': N, \
-                                    'b': float(namespace.b) \
-                                   }
-        yaml.dump(mydir, fout)
-
-      if namespace.r0_ke:  # Harmonic chain
-        r0, ke = namespace.r0_ke
-
-        mydir = {}
-        mydir['PolymerHarmonic'] = {'offset': noffset, \
-                                    'N': N, \
-                                    'ke': float(ke), \
-                                    'r0': float(r0) \
-                                   }
-        yaml.dump(mydir, fout)
-
-      if namespace.rc_ke_eps:  # FENE chain
-        rc, ke, eps = namespace.rc_ke_eps
-
-        mydir = {}
-        mydir['PolymerFENE'] = {'offset': noffset, \
-                                    'N': N, \
-                                    'ke': float(ke), \
-                                    'rc': float(rc), \
-                                    'sigma': 1., \
-                                    'epsilon': eps \
-                                   }
-        yaml.dump(mydir, fout)
-
-      if namespace.lp:  # Kratky-Porod potential
-        mydir = {}
-        mydir['PolymerKratkyPorod'] = {'offset': noffset, \
-                                    'N': N, \
-                                    'lp': float(namespace.lp) \
-                                   }
-
-        yaml.dump(mydir, fout)
-      # increment
-      nchain += 1
-      noffset += N
-      phi += dphi
-
+    if ( namespace.density <= 0 ):
+      raise ValueError("Must provide a positive density of chains.")
+    dphi = float(N)*np.pi*0.25 / area     # area fraction of one chain
+    nchain = int(np.ceil(namespace.density / dphi))
     print("nchains = {:d}".format(nchain))
     print("nmonomers = {:d}".format(N*nchain))
 
+    # The `forcefields` map of the configuration is keyed by force-field type
+    # and each Polymer* force field describes a single chain (offset, N).
+    if ( nchain > 1 ):
+      raise ValueError(f"The target density needs {nchain} chains, but the "
+                       "configuration format holds one force field of each "
+                       "type, hence a single chain.")
 
+    # force fields
+    offset = 0
+    forcefields = {}
+    if namespace.b:  # Gaussian chain
+      forcefields['PolymerGaussian'] = {'offset': offset, 'N': N, 'b': float(namespace.b)}
 
+    if namespace.r0_ke:  # Harmonic chain
+      r0, ke = namespace.r0_ke
+      forcefields['PolymerHarmonic'] = {'offset': offset, 'N': N, 'ke': float(ke), 'r0': float(r0)}
+
+    if namespace.rc_ke_eps:  # FENE chain
+      rc, ke, eps = namespace.rc_ke_eps
+      forcefields['PolymerFENE'] = {'offset': offset, 'N': N, 'ke': float(ke), 'rc': float(rc), \
+                                    'sigma': 1., 'epsilon': float(eps)}
+
+    if namespace.lp:  # Kratky-Porod potential
+      forcefields['PolymerKratkyPorod'] = {'offset': offset, 'N': N, 'lp': float(namespace.lp)}
+
+    with open(fpath_out, 'w') as fout:
+      yaml.dump({'forcefields': forcefields}, fout, sort_keys=False)
+    print(f"Force fields written to: {fpath_out}")

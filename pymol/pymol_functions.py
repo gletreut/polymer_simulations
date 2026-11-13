@@ -2,7 +2,8 @@
 from pymol.cgo import *
 from pymol import cmd, stored, util
 import subprocess as sb
-import os,sys,glob
+import os,sys,glob,shutil
+from itertools import product
 import numpy as np
 
 def draw_sphere(x,y,z,radius,rgb=[0.,1.,0.], name="sphere", transparency=0.0):
@@ -18,6 +19,24 @@ def draw_sphere(x,y,z,radius,rgb=[0.,1.,0.], name="sphere", transparency=0.0):
     cmd.set("cgo_transparency", transparency, name)
     return
 
+def draw_box(lo, hi, rgb=[1.,1.,1.], name="box", linewidth=2.0):
+    """
+    Draw the edges of the axis-aligned box with corners lo and hi.
+    """
+    corners = [lo, hi]
+    cmd_lst = [LINEWIDTH, float(linewidth), BEGIN, LINES, COLOR] + [float(c) for c in rgb]
+    # an edge joins two vertices differing along a single axis d
+    for d in range(3):
+        for u in product((0,1), repeat=2):
+            for e in (0,1):
+                bits = list(u)
+                bits.insert(d, e)
+                cmd_lst += [VERTEX] + [float(corners[b][k]) for k,b in enumerate(bits)]
+    cmd_lst.append(END)
+    cmd.load_cgo(cmd_lst, name)
+    return
+
+cmd.extend("draw_box",draw_box)
 
 def load_xyz_trajectory(trajfile, free_color='tv_blue', bound_color='tv_red', bg_color='white', monomer_size=1.0, target_radius=1.0, sphere_transparency=0.0, target_transparency=0.25):
     """
@@ -113,7 +132,7 @@ def load_xyz_states(trajdir, prefix="state"):
     The trajectory is ordered by alphabetical order.
     """
     # make list of state files
-    lst = glob.glob(trajdir+prefix+"*.xyz")
+    lst = glob.glob(os.path.join(trajdir, prefix+"*.xyz"))
     lst.sort()
 
     return load_xyz_states_list(lst)
@@ -166,7 +185,8 @@ def load_single_xyz(file_xyz, file_surface_radius=None, monomer_color='tv_blue',
     # display parameters
     cmd.hide("everything","all")
     cmd.show("spheres",name)
-    cmd.show("surface",name_surface)
+    if not file_surface_radius is None:
+        cmd.show("surface",name_surface)
     #cmd.show("spheres",name_surface)
     cmd.set("solvent_radius", 1.4*(2*monomer_size))       # if too small then surface is incomplete
     cmd.bg_color(bg_color)
@@ -182,7 +202,7 @@ def load_single_xyz(file_xyz, file_surface_radius=None, monomer_color='tv_blue',
 
     return
 
-cmd.extend("load_single_xyz",load_xyz_states_list)
+cmd.extend("load_single_xyz",load_single_xyz)
 
 def polymer_colloids_standard(path=["pol.xyz"], polymer_color='tv_blue', monomer_size=1.0, sphere_transparency=0.0, showspheres=True):
     ## LOADING
@@ -191,18 +211,6 @@ def polymer_colloids_standard(path=["pol.xyz"], polymer_color='tv_blue', monomer
     obj=[os.path.splitext(p)[0].split('/')[-1] for p in path]
     ntypes=len(obj)
     print ("objects to load: %d" %ntypes)
-
-    # COLORS DEFINITION
-    pol_color="black" # polymer is black
-    col=[]
-    for j in range(ntypes-1):
-        hsv= (240-j*240/(ntypes-1),1,1)
-        # convert to rgb
-        rgb=hsv_to_rgb(hsv)
-        # define color
-        col_name="mycolor%d" %j
-        cmd.set_color(col_name,rgb)
-        col.append(col_name)
 
     # MAKE THE COLORING
     sel=obj[0]
@@ -268,20 +276,10 @@ def make_movie(npts=100,rdir='.',nmin=None,nmax=None, imgpx_w=800, imgpx_h=600, 
     # https://askubuntu.com/questions/610903/how-can-i-create-a-video-file-from-a-set-of-jpg-images
     # https://askubuntu.com/questions/745732/converting-png-files-to-a-movie
     # https://stackoverflow.com/questions/25869206/ffmpeg-png-to-mp4-black-screen
-    cmdtab=[]
-    cmdtab.append('ffmpeg')
-    cmdtab.append('-y')
-    cmdtab.append("-r  {:d}".format(framerate))
-    cmdtab.append("-i {:s}".format(bname))
-    cmdtab.append('-c:v')
-    cmdtab.append('libx264')
-    cmdtab.append('-pix_fmt')
-    cmdtab.append('yuv420p')
-    cmdtab.append('{:s}.mp4'.format(filename))
-    command=' '.join(cmdtab)
-    sb.call(command,shell=True)
-    command="rm -f {:s}*.png".format(filename)
-    sb.call(command,shell=True)
+    sb.run(['ffmpeg', '-y', '-r', str(framerate), '-i', bname,
+            '-c:v', 'libx264', '-pix_fmt', 'yuv420p', filename+'.mp4'], check=True)
+    for f in glob.glob(filename+"[0-9][0-9][0-9][0-9].png"):
+        os.remove(f)
 
 cmd.extend("make_movie",make_movie)
 
@@ -309,12 +307,9 @@ def make_state_movie(state=None,fileout='state.gif',nframes=150,imgpx_w=800, img
     cmd.mpng(pngname)
 
     # MAKE THE GIF AND DELETE PNGs
-    #command="convert -delay %.1f -loop 0 %s*.png %s.gif" %(30./100,pngname,filename)
-    command="convert -delay %.1f -loop 0 %s*.png %s" %(30./100,pngname,fileout)
-    sb.call(command,shell=True)
-    #command="rm -f %s*.png" %filename
-    command="rm -rf %s" %dirstates_path
-    sb.call(command,shell=True)
+    pngs = sorted(glob.glob(pngname+"*.png"))
+    sb.run(['convert', '-delay', '%.1f' %(30./100), '-loop', '0'] + pngs + [fileout], check=True)
+    shutil.rmtree(dirstates_path)
 
 cmd.extend("make_state_movie",make_state_movie)
 
