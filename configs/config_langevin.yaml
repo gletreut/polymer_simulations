@@ -61,7 +61,7 @@ integration:
                 idump: 1.0e3    # write configurations every idump steps
                 xyz: true       # trajectory/xyz/*.xyz
                 dat: true       # trajectory/dat/*.dat
-        neighbor_build: 10      # rebuild neighbor lists every n steps
+        neighbor_build: 0       # if > 0, also rebuild neighbor lists every n steps
         neighbor: false         # dump neighbor lists to trajectory/neighbor/
 
 seed: 123                       # random number generator seed
