@@ -60,9 +60,24 @@ utils.o: utils.h utils.tpp utils.cpp
 yaml_config.o: yaml_config.h model.h stepper.h integration.h forcefield.h constraint.h neighborlist.h yaml_config.cpp
 	$(CC) $(CFLAGS) -c yaml_config.cpp
 
+# tests: force/energy consistency and golden-run regression
+TEST_OBJS = $(filter-out main.o, $(OBJS))
+CHECK = ../bin/check_forces
+
+$(CHECK): ../tests/check_forces.cpp $(TEST_OBJS) $(wildcard *.h)
+	$(CC) $(CFLAGS) -I. ../tests/check_forces.cpp $(TEST_OBJS) -o $@ $(LDFLAGS) $(LDLIBS)
+
+.PHONY: check
+check: $(CHECK)
+	$(CHECK)
+
+.PHONY: golden
+golden: $(PROG)
+	../tests/golden/compare.sh
+
 .PHONY: clean
 clean:
-	rm -f *~ *.o $(PROG) core a.out
+	rm -f *~ *.o $(PROG) $(CHECK) core a.out
 
 .PHONY: install
 install: $(PROG)
