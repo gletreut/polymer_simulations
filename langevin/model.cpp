@@ -227,6 +227,10 @@ void MDWorld::update_energy_forces(){
   /*
    * compute all forces
    */
+  /* neighbor lists must be complete at the current positions */
+  if (update_neighbor_lists(m_iter))
+    m_nlist_updated = true;
+
   m_energy_pot = 0;
   gsl_matrix_set_all(m_forces, 0.);
 

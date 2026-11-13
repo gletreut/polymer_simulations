@@ -73,6 +73,8 @@ class MDWorld {
     void update_energy_kinetics();
     void constrain_x();
     void constrain_v();
+    size_t m_iter = 0;              // current iteration (for neighbor-list statistics)
+    bool m_nlist_updated = false;   // a neighbor list was rebuilt since this flag was reset
     bool update_neighbor_lists(size_t iter, bool force=false);
 
     // dump methods

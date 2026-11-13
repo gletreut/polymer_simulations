@@ -44,7 +44,7 @@ check: $(CHECK)
 	$(CHECK)
 
 golden: $(PROG)
-	../tests/golden/compare.sh
+	bash ../tests/golden/compare.sh
 
 clean:
 	rm -f *~ *.o *.d $(PROG) $(CHECK) core a.out

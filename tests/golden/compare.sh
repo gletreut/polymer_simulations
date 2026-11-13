@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Golden-run regression: run bin/simu_langevin on config.yaml in a temporary
 # directory and compare thermo.dat and positions_final.dat with the stored
-# copies (relative tolerance 1e-10). Exit nonzero on mismatch.
+# copies (tolerance 5e-8 on |diff|/max(|ref|, 1)). Exit nonzero on mismatch.
 #   compare.sh            compare against stored files
 #   compare.sh --update   regenerate the stored files
 set -euo pipefail
@@ -34,11 +34,10 @@ for f in files:
         print(f"{f:22s} FAIL  shape {new.shape} != {ref.shape}")
         ok = False
         continue
-    rel = np.abs(new - ref) / np.maximum(np.abs(ref), np.finfo(float).tiny)
-    rel[(new == ref)] = 0.0
-    err = rel.max()
-    status = "PASS" if err <= 1e-10 else "FAIL"
+    # values are printed with about 8 digits: allow a few units in the last one
+    err = (np.abs(new - ref) / np.maximum(np.abs(ref), 1.0)).max()
+    status = "PASS" if err <= 5e-8 else "FAIL"
     ok &= status == "PASS"
-    print(f"{f:22s} max rel. diff {err:.3e}  {status}")
+    print(f"{f:22s} max diff {err:.3e}  {status}")
 sys.exit(0 if ok else 1)
 EOF

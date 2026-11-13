@@ -60,31 +60,29 @@ if __name__ == "__main__":
     print("nchains = {:d}".format(nchain))
     print("nmonomers = {:d}".format(N*nchain))
 
-    # The `forcefields` map of the configuration is keyed by force-field type
-    # and each Polymer* force field describes a single chain (offset, N).
-    if ( nchain > 1 ):
-      raise ValueError(f"The target density needs {nchain} chains, but the "
-                       "configuration format holds one force field of each "
-                       "type, hence a single chain.")
+    # force fields, one entry per chain and type. The simulation reads repeated
+    # keys in `forcefields` as separate force fields, so the output repeats
+    # keys and is written as text (PyYAML cannot dump repeated keys).
+    def chain_forcefields(offset):
+      forcefields = {}
+      if namespace.b:  # Gaussian chain
+        forcefields['PolymerGaussian'] = {'offset': offset, 'N': N, 'b': float(namespace.b)}
+      if namespace.r0_ke:  # Harmonic chain
+        r0, ke = namespace.r0_ke
+        forcefields['PolymerHarmonic'] = {'offset': offset, 'N': N, 'ke': float(ke), 'r0': float(r0)}
+      if namespace.rc_ke_eps:  # FENE chain
+        rc, ke, eps = namespace.rc_ke_eps
+        forcefields['PolymerFENE'] = {'offset': offset, 'N': N, 'ke': float(ke), 'rc': float(rc),
+                                      'sigma': 1., 'epsilon': float(eps)}
+      if namespace.lp:  # Kratky-Porod potential
+        forcefields['PolymerKratkyPorod'] = {'offset': offset, 'N': N, 'lp': float(namespace.lp)}
+      return forcefields
 
-    # force fields
-    offset = 0
-    forcefields = {}
-    if namespace.b:  # Gaussian chain
-      forcefields['PolymerGaussian'] = {'offset': offset, 'N': N, 'b': float(namespace.b)}
-
-    if namespace.r0_ke:  # Harmonic chain
-      r0, ke = namespace.r0_ke
-      forcefields['PolymerHarmonic'] = {'offset': offset, 'N': N, 'ke': float(ke), 'r0': float(r0)}
-
-    if namespace.rc_ke_eps:  # FENE chain
-      rc, ke, eps = namespace.rc_ke_eps
-      forcefields['PolymerFENE'] = {'offset': offset, 'N': N, 'ke': float(ke), 'rc': float(rc), \
-                                    'sigma': 1., 'epsilon': float(eps)}
-
-    if namespace.lp:  # Kratky-Porod potential
-      forcefields['PolymerKratkyPorod'] = {'offset': offset, 'N': N, 'lp': float(namespace.lp)}
+    lines = ['forcefields:']
+    for c in range(nchain):
+      for key, params in chain_forcefields(c*N).items():
+        lines.append(f"  {key}: " + yaml.dump(params, default_flow_style=True, sort_keys=False).strip())
 
     with open(fpath_out, 'w') as fout:
-      yaml.dump({'forcefields': forcefields}, fout, sort_keys=False)
+      fout.write('\n'.join(lines) + '\n')
     print(f"Force fields written to: {fpath_out}")

@@ -138,7 +138,7 @@ static EnergyForce wrap_frozen_polarity(PolarChains *ff) {
   /*
    * Diagnostic: energy and force with the polarity vectors frozen at their
    * current values (computed once by energy_force at the reference x).
-   * Isolates the pair force from the missing d(polarity)/dx terms.
+   * Checks the pair force alone, without the d(polarity)/dx terms.
    */
   return [ff](gsl_matrix *x, gsl_matrix *f) {
     double u = 0.;
@@ -381,9 +381,10 @@ int main() {
       {"overlap", {{0, 5}, {4, 9}}},
       {"singleton", {{0, 0}, {1, 9}}},
     };
+    NeighborList nl(100, 1.0e3, 10);
     for (const auto &b : bad)
       expect_invalid_argument(string("PolarPair48 bad ends: ") + b.first,
-                              [&] { PolarPair48 ff(1.0, 1.0, 2.0, 0.3, 0, b.second); });
+                              [&] { PolarPair48 ff(1.0, 1.0, 2.0, 0.3, &nl, b.second); });
   }
 
   // --- constraints after one Lang_VVerlet step

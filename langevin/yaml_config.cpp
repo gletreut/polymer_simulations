@@ -18,6 +18,14 @@ static void check_chain(const string &key, size_t offset, size_t N, size_t npart
     throw invalid_argument(key + ": the chain (offset, N) must have N >= 2 and fit in 0..npart-1.");
 }
 
+static vector<pair<size_t, size_t> > parse_chain_ends(const YAML::Node &node){
+  /* chain_ends: [[istart, iend], ...] */
+  vector<pair<size_t, size_t> > chain_ends;
+  for (size_t i=0; i<node.size(); i++)
+    chain_ends.push_back(make_pair(node[i][0].as<size_t>(), node[i][1].as<size_t>()));
+  return chain_ends;
+}
+
 void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
   /*
    * Re-initialize the MDWorld object based on the input parameters.
@@ -369,14 +377,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       npair_max = FNode["npair_max"].as<size_t>();
       nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
 
-      YAML::Node chain_ends = FNode["chain_ends"];
-      vector<pair<size_t, size_t> > chain_ends_list;
-      for (size_t i=0; i<chain_ends.size(); i++) {
-        size_t istart = chain_ends[i][0].as<size_t>();
-        size_t iend = chain_ends[i][1].as<size_t>();
-        pair<size_t, size_t> mypair (istart, iend);
-        chain_ends_list.push_back(mypair);
-      }
+      vector<pair<size_t, size_t> > chain_ends_list = parse_chain_ends(FNode["chain_ends"]);
 
       world->m_neighbors.push_back(nneighbor);
       ffield = new PolarPairLJ(eps, sigma, rc, alpha, nneighbor, chain_ends_list);
@@ -399,14 +400,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       npair_max = FNode["npair_max"].as<size_t>();
       nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
 
-      YAML::Node chain_ends = FNode["chain_ends"];
-      vector<pair<size_t, size_t> > chain_ends_list;
-      for (size_t i=0; i<chain_ends.size(); i++) {
-        size_t istart = chain_ends[i][0].as<size_t>();
-        size_t iend = chain_ends[i][1].as<size_t>();
-        pair<size_t, size_t> mypair (istart, iend);
-        chain_ends_list.push_back(mypair);
-      }
+      vector<pair<size_t, size_t> > chain_ends_list = parse_chain_ends(FNode["chain_ends"]);
 
       world->m_neighbors.push_back(nneighbor);
       ffield = new PolarPair48(eps, sigma, rc, alpha, nneighbor, chain_ends_list);
@@ -490,14 +484,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
 
       // indices of chain ends
-      YAML::Node chain_ends = FNode["chain_ends"];
-      vector<pair<size_t, size_t> > chain_ends_list;
-      for (size_t i=0; i<chain_ends.size(); i++) {
-        size_t istart = chain_ends[i][0].as<size_t>();
-        size_t iend = chain_ends[i][1].as<size_t>();
-        pair<size_t, size_t> mypair (istart, iend);
-        chain_ends_list.push_back(mypair);
-      }
+      vector<pair<size_t, size_t> > chain_ends_list = parse_chain_ends(FNode["chain_ends"]);
 
       // add forcefield to world
       world->m_neighbors.push_back(nneighbor);

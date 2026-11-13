@@ -9,4 +9,4 @@
   constraints hold to $10^{-12}$ after one `Lang_VVerlet` step. Exit status is nonzero on failure.
 - `make -C langevin golden` runs `bin/simu_langevin` on `golden/config.yaml` in a temporary
   directory and compares `thermo.dat` and `positions_final.dat` with the stored copies
-  (relative tolerance $10^{-10}$). `golden/compare.sh --update` regenerates the stored files.
+  (tolerance $5\cdot 10^{-8}$ on $|\Delta|/\max(|x_\mathrm{ref}|, 1)$, the print precision). `golden/compare.sh --update` regenerates the stored files.

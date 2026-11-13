@@ -218,8 +218,9 @@ int main(int argc, char *argv[]) try {
   world->update_energy_kinetics();
 
   /* initialize neighbor lists, before the first force evaluation */
-  nlist_updated = world->update_neighbor_lists(0, true);
+  world->update_neighbor_lists(0, true);
   stepper->call_forces(); // compute forces at current position
+  nlist_updated = true;
 
   /* integration */
   for (iter = 0; iter < iparams.itermax; ++iter){
@@ -267,18 +268,21 @@ int main(int argc, char *argv[]) try {
     }
 
     /* step */
+    world->m_iter = iter;
+    world->m_nlist_updated = false;
     stepper->step();
 
     /* update energy */
     // potential energy already updated when calling the forces in the stepper
     world->update_energy_kinetics();
 
-    /* update neighbor lists */
-    // Rebuild a list when a particle has moved by more than half its skin
-    // since the last build; also rebuild all lists every ineighbor_build
-    // steps if ineighbor_build > 0.
-    bool force_build = (iparams.ineighbor_build > 0) && (iter % iparams.ineighbor_build == 0);
-    nlist_updated = world->update_neighbor_lists(iter, force_build);
+    /* neighbor lists */
+    // A list is rebuilt before each force evaluation when a particle has moved
+    // by more than half its skin since the last build (MDWorld::update_energy_forces).
+    // If ineighbor_build > 0, all lists are also rebuilt every ineighbor_build steps.
+    if ((iparams.ineighbor_build > 0) && (iter % iparams.ineighbor_build == 0))
+      world->m_nlist_updated |= world->update_neighbor_lists(iter, true);
+    nlist_updated = world->m_nlist_updated;
   }
 
   /* final dump */
