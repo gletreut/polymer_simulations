@@ -478,7 +478,7 @@ void PolymerFENE::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
     linalg_daxpy(+fnorm, bond, &fnp.vector);
     //  LJ
     fnorm = force_LJ_scal(r);  // algebraic norm
-    fnorm /= (r*r);            // because bond is not normalized to 1
+    fnorm /= r;                // bond is not normalized to 1
     linalg_daxpy(-fnorm, bond, &fn.vector);
     linalg_daxpy(+fnorm, bond, &fnp.vector);
   }
@@ -782,501 +782,258 @@ void PairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 //****************************************************************************
+// PolarChains
+//****************************************************************************
+PolarChains::PolarChains(NeighborList *neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
+  m_neighbors(neighbors),
+  m_chain_ends(chain_ends)
+{
+  /* every particle must belong to exactly one chain of at least 2 beads */
+  vector<pair<size_t, size_t> > chains(m_chain_ends);
+  sort(chains.begin(), chains.end());
+  size_t npart = 0;
+  for (size_t c=0; c<chains.size(); ++c){
+    if (chains[c].first != npart)
+      throw invalid_argument("Polar force field: chain_ends must cover particles 0..npart-1 without gaps or overlaps.");
+    if (chains[c].second <= chains[c].first)
+      throw invalid_argument("Polar force field: each chain needs at least 2 beads.");
+    npart = chains[c].second + 1;
+  }
+  if (npart == 0)
+    throw invalid_argument("Polar force field: chain_ends is empty.");
+
+  m_pol_vec = gsl_matrix_calloc(npart, 3);
+  m_pol_grad = gsl_matrix_calloc(npart, 3);
+  m_tnorm.assign(npart, 0.0);
+}
+
+PolarChains::~PolarChains()
+{
+  gsl_matrix_free(m_pol_vec);
+  gsl_matrix_free(m_pol_grad);
+}
+
+static inline void chain_neighbors(size_t k, size_t istart, size_t iend, size_t &kp, size_t &km){
+  /* beads defining the tangent t_k = x_{kp} - x_{km} */
+  kp = (k == iend) ? k : k+1;
+  km = (k == istart) ? k : k-1;
+}
+
+void PolarChains::update_polarity(const gsl_matrix *x){
+  /*
+   * Compute n_k = ez x t_k / |t_k| for all beads, and reset g_k.
+   */
+  if (x->size1 != m_pol_vec->size1)
+    throw invalid_argument("Polar force field: chain_ends must cover all particles.");
+
+  for (size_t c=0; c<m_chain_ends.size(); ++c){
+    size_t istart = m_chain_ends[c].first;
+    size_t iend = m_chain_ends[c].second;
+    for (size_t k=istart; k<=iend; ++k){
+      size_t kp, km;
+      chain_neighbors(k, istart, iend, kp, km);
+      double tx = gsl_matrix_get(x, kp, 0) - gsl_matrix_get(x, km, 0);
+      double ty = gsl_matrix_get(x, kp, 1) - gsl_matrix_get(x, km, 1);
+      double tn = sqrt(tx*tx + ty*ty);
+      m_tnorm[k] = tn;
+      gsl_matrix_set(m_pol_vec, k, 0, -ty/tn);
+      gsl_matrix_set(m_pol_vec, k, 1, tx/tn);
+      gsl_matrix_set(m_pol_vec, k, 2, 0.0);
+    }
+  }
+  gsl_matrix_set_zero(m_pol_grad);
+}
+
+void PolarChains::add_polarity_forces(gsl_matrix *forces){
+  /*
+   * Add the forces due to the dependence of n_k on x_{k+} and x_{k-}:
+   *   F_{k+} += c n_k,  F_{k-} -= c n_k,  c = (t_k/|t_k| . g_k) / |t_k|.
+   */
+  for (size_t c=0; c<m_chain_ends.size(); ++c){
+    size_t istart = m_chain_ends[c].first;
+    size_t iend = m_chain_ends[c].second;
+    for (size_t k=istart; k<=iend; ++k){
+      size_t kp, km;
+      chain_neighbors(k, istart, iend, kp, km);
+      double nx = gsl_matrix_get(m_pol_vec, k, 0);
+      double ny = gsl_matrix_get(m_pol_vec, k, 1);
+      // unit tangent: t_k/|t_k| = (ny, -nx)
+      double coef = (ny*gsl_matrix_get(m_pol_grad, k, 0) - nx*gsl_matrix_get(m_pol_grad, k, 1)) / m_tnorm[k];
+      gsl_matrix_set(forces, kp, 0, gsl_matrix_get(forces, kp, 0) + coef*nx);
+      gsl_matrix_set(forces, kp, 1, gsl_matrix_get(forces, kp, 1) + coef*ny);
+      gsl_matrix_set(forces, km, 0, gsl_matrix_get(forces, km, 0) - coef*nx);
+      gsl_matrix_set(forces, km, 1, gsl_matrix_get(forces, km, 1) - coef*ny);
+    }
+  }
+}
+
+void PolarChains::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
+  /*
+   * Compute the potential energy and force (minus gradient) of the pair interactions.
+   */
+  gsl_vector *fj = gsl_vector_calloc(3);
+  gsl_vector *gi = gsl_vector_calloc(3);
+  gsl_vector *gj = gsl_vector_calloc(3);
+
+  update_polarity(x);
+
+  for (size_t p=0; p<m_neighbors->m_npair; ++p)
+  {
+    size_t n = gsl_matrix_uint_get(m_neighbors->m_pairs, p, 0);
+    size_t m = gsl_matrix_uint_get(m_neighbors->m_pairs, p, 1);
+
+    gsl_vector_const_view xn = gsl_matrix_const_row(x, n);
+    gsl_vector_const_view xm = gsl_matrix_const_row(x, m);
+    gsl_vector_const_view pn = gsl_matrix_const_row(m_pol_vec, n);
+    gsl_vector_const_view pm = gsl_matrix_const_row(m_pol_vec, m);
+    gsl_vector_view fn = gsl_matrix_row(forces, n);
+    gsl_vector_view fm = gsl_matrix_row(forces, m);
+    gsl_vector_view gn = gsl_matrix_row(m_pol_grad, n);
+    gsl_vector_view gm = gsl_matrix_row(m_pol_grad, m);
+
+    *u += pair_energy_force(&xn.vector, &xm.vector, &pn.vector, &pm.vector, fj, gi, gj);
+    gsl_vector_sub(&fn.vector, fj);
+    gsl_vector_add(&fm.vector, fj);
+    gsl_vector_add(&gn.vector, gi);
+    gsl_vector_add(&gm.vector, gj);
+  }
+
+  add_polarity_forces(forces);
+
+  gsl_vector_free(fj);
+  gsl_vector_free(gi);
+  gsl_vector_free(gj);
+  return;
+}
+
+namespace {
+  struct PolarPairGeometry {
+    /*
+     * Separation and orientation variables of a polar pair:
+     *   r = |x_j - x_i|,  e = (x_j - x_i)/r,  d = n_i - n_j,  a = d.e / 2.
+     */
+    double r, a;
+    double e[3], d[3];
+
+    PolarPairGeometry(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj){
+      r = 0.0;
+      a = 0.0;
+      for (size_t k=0; k<3; ++k){
+        e[k] = gsl_vector_get(xj, k) - gsl_vector_get(xi, k);
+        d[k] = gsl_vector_get(ni, k) - gsl_vector_get(nj, k);
+        r += e[k]*e[k];
+      }
+      r = sqrt(r);
+      for (size_t k=0; k<3; ++k){
+        e[k] /= r;
+        a += 0.5*d[k]*e[k];
+      }
+    }
+
+    void set_gradients(double U_r, double U_a, gsl_vector *fj, gsl_vector *gi, gsl_vector *gj) const {
+      /*
+       * Given U_r = dU/dr and U_a = dU/da:
+       *   fj = -dU/dx_j = -(U_r e + U_a da/dx_j),  da/dx_j = (d - 2a e)/(2r),
+       *   gi = dU/dn_i = U_a e/2,  gj = dU/dn_j = -U_a e/2.
+       */
+      for (size_t k=0; k<3; ++k){
+        double da_dxj = 0.5*(d[k] - 2.0*a*e[k])/r;
+        gsl_vector_set(fj, k, -(U_r*e[k] + U_a*da_dxj));
+        gsl_vector_set(gi, k, 0.5*U_a*e[k]);
+        gsl_vector_set(gj, k, -0.5*U_a*e[k]);
+      }
+    }
+  };
+}
+
+//****************************************************************************
 // PolarPairLJ
 //****************************************************************************
 PolarPairLJ::PolarPairLJ(double eps, double sigma, double rc_LJ, double alpha, NeighborList *neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
-  PairLJ(eps, sigma, rc_LJ, neighbors),
-  m_chain_ends(chain_ends),
+  PolarChains(neighbors, chain_ends),
+  m_eps(eps),
+  m_sigma(sigma),
+  m_rc_LJ(rc_LJ),
   m_alpha(alpha)
-
 {
-  int imax = 0;
-  for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
-  {
-    int iend = it->second;                                   // iend assigned to iterator it that points to second (end of chain)
-    if (iend > imax) imax = iend;
-  }
-
-  m_pol_vec = gsl_matrix_calloc(imax+1, 3);
 }
 
 PolarPairLJ::~PolarPairLJ()
 {
-  gsl_matrix_free(m_pol_vec);
 }
 
-double PolarPairLJ::V_LJ(double rhat){
+double PolarPairLJ::V_LJ(double u){
+  /* u = r / s is the dimensionless separation */
+  double u6 = pow(u, -6);
+  return 4.0*m_eps*(u6*u6 - u6);
+}
+
+double PolarPairLJ::V_LJ_prime(double u){
+  /* derivative of V_LJ with respect to u */
+  double u6 = pow(u, -6);
+  return -48.0*m_eps/u*(u6*u6 - 0.5*u6);
+}
+
+double PolarPairLJ::pair_energy_force(const gsl_vector *xi, const gsl_vector *xj,
+                                      const gsl_vector *ni, const gsl_vector *nj,
+                                      gsl_vector *fj, gsl_vector *gi, gsl_vector *gj){
   /*
-   * rhat = r / sigma is the dimensionless separation
+   * U = V(r/s) - V(rc),  s = sigma (1 + alpha (1 + a)/2).
+   *   dU/dr = V'(u)/s,  dU/da = -V'(u) (u/s) ds/da,  ds/da = sigma alpha/2.
    */
-  double u, u6, u12;
+  PolarPairGeometry p(xi, xj, ni, nj);
+  double s = m_sigma*(1.0 + 0.5*m_alpha*(1.0 + p.a));
+  double u = p.r/s;
 
-  u = 1./rhat;
-  u6=u*u*u*u*u*u;
-  u12=u6*u6;
+  gsl_vector_set_zero(fj);
+  gsl_vector_set_zero(gi);
+  gsl_vector_set_zero(gj);
+  if (u >= m_rc_LJ)
+    return 0.0;
 
-  return m_4eps*(u12 - u6);
-}
-
-double PolarPairLJ::V_LJ_prime(double rhat){
-  /*
-   * rhat = r / sigma is the dimensionless separation
-   */
-  double u, u6, u12;
-
-  u = 1./rhat;
-  u6=u*u*u*u*u*u;
-  u12=u6*u6;
-
-  return -m_48eps*u*(u12 - 0.5*u6);
-}
-
-double PolarPairLJ::get_sigma(double phi, double ti, double tj){
-  double aij;
-
-  aij = -sin(phi - 0.5*(ti+tj))*sin(0.5*(tj-ti));  // in [-1,1]
-
-  return m_sigma*( 1. + m_alpha * 0.5*(1. + aij) );
-}
-
-double PolarPairLJ::get_sigma_dphi(double phi, double ti, double tj){
-  double aij_dphi;
-
-  aij_dphi = 0.5*(sin(phi-tj) - sin(phi-ti));
-
-  return m_sigma * m_alpha * 0.5 * aij_dphi;
-}
-
-double PolarPairLJ::energy_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj){
-  /*
-   * compute the energy of the interaction.
-   * INPUT:
-   *   xij = xj - xi.
-   *   ni: polarity vector i
-   *   nj: polarity vector j
-   */
-
-  double r, phi, ti, tj, sigma, rhat, rhatc, energy;
-  gsl_vector *xij(0);
-
-  xij = gsl_vector_calloc(3);
-
-  gsl_vector_memcpy(xij, xj);
-  linalg_daxpy(-1.0, xi, xij);
-  r = linalg_dnrm2(xij);
-  phi = utils::get_angle_2d(xij);
-  ti = utils::get_angle_2d(ni);
-  tj = utils::get_angle_2d(nj);
-  sigma = get_sigma(phi, ti, tj);
-
-  rhat = r / sigma;
-  rhatc = m_rc_LJ;
-
-  if (rhat < rhatc) {
-    energy =  V_LJ(rhat) - V_LJ(rhatc);
-  }
-  else {
-    energy = 0.0;
-  }
-
-  gsl_vector_free(xij);
-  return energy;
-}
-
-void PolarPairLJ::force_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force){
-  /*
-   * compute the force applied by i on j.
-   * INPUT:
-   *   xi: coordinates i
-   *   xj: coordinates j
-   *   ni: polarity vector i
-   *   nj: polarity vector j
-   *   force: vector.
-   */
-
-  double r, phi, ti, tj, sigma, sigma_dphi, rhat, rhatc, vx, vy, fpref;
-  gsl_vector *er(0), *ephi(0);
-
-  er = gsl_vector_calloc(3);
-  ephi = gsl_vector_calloc(3);
-
-  // compute separation, vectors
-  gsl_vector_memcpy(er, xj);
-  linalg_daxpy(-1.0, xi, er);
-  r = linalg_dnrm2(er);
-  linalg_dscal(1./r, er);
-  vx = gsl_vector_get(er, 0);
-  vy = gsl_vector_get(er, 1);
-  gsl_vector_set(ephi, 0, -vy);
-  gsl_vector_set(ephi, 1, vx);
-
-  // compute angles
-  phi = utils::get_angle_2d(er);
-  ti = utils::get_angle_2d(ni);
-  tj = utils::get_angle_2d(nj);
-
-  // construct er, ephi vectors
-  // compute sigma, sigma derivative to phi
-  sigma = get_sigma(phi, ti, tj);
-  sigma_dphi = get_sigma_dphi(phi, ti, tj);
-
-  // other variables
-  rhat = r / sigma;
-  rhatc = m_rc_LJ; // * sigma / sigma
-  fpref = -V_LJ_prime(rhat) / sigma;
-
-  gsl_vector_set_all(force, 0.0);
-  if (rhat < rhatc) {
-    gsl_vector_memcpy(force, er);
-    linalg_daxpy(-sigma_dphi/sigma, ephi, force);
-    linalg_dscal(fpref, force);
-  }
-
-  gsl_vector_free(er);
-  gsl_vector_free(ephi);
-  return;
-}
-
-void PolarPairLJ::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
-  /*
-   * Compute the potential energy and force (minus gradient) produced by pair Lennard-Jones interactions.
-   */
-
-  size_t n, m;
-  gsl_vector *xtp(0), *ftp(0);
-  gsl_vector_view pn, pm;
-
-  xtp = gsl_vector_calloc(3);
-  ftp = gsl_vector_calloc(3);
-
-  // chain polarity vector
-  for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
-  {
-    size_t istart = it->first;                                  // istart assigned to iterator it that points to first (beginning of chain)
-    size_t iend = it->second;                                   // iend assigned to iterator it that points to second (end of chain)
-    double pn_norm;
-    gsl_matrix *rot(0);
-    gsl_vector_view x0, x1, x2;
-
-    // rotation matrix around ez axis
-    rot = gsl_matrix_calloc(3,3);
-    gsl_matrix_set(rot, 0, 0, 0.0);
-    gsl_matrix_set(rot, 1, 0, 1.0);
-    gsl_matrix_set(rot, 0, 1, -1.0);
-    gsl_matrix_set(rot, 1, 1, 0.0);
-
-    // INTERIOR BEADS ([istart + 1] to [iend - 1])
-    for (size_t i = istart + 1; i < iend; i++)
-    {
-
-      x0 = gsl_matrix_row(x, i-1);
-      x2 = gsl_matrix_row(x, i+1);
-      pn = gsl_matrix_row(m_pol_vec,i);
-
-      gsl_vector_set_all(xtp, 0.0);
-      linalg_daxpy(1.0, &x2.vector, xtp);
-      linalg_daxpy(-1.0, &x0.vector, xtp);
-      pn_norm = linalg_dnrm2(xtp);
-      linalg_dgemv(0, 1.0/pn_norm, rot, xtp, 0.0, &pn.vector);
-    }
-
-    // ENDPOINTS
-    // CASE 1: START/FIRST BEAD [istart]
-    pn = gsl_matrix_row(m_pol_vec, istart);
-    pm = gsl_matrix_row(m_pol_vec, istart+1);
-
-    // Row Vectors
-    x0 = gsl_matrix_row(x, istart);
-    x1 = gsl_matrix_row(x, istart+1);
-
-    gsl_vector_set_all(xtp,0);
-    linalg_daxpy(1, &x1.vector, xtp);
-    linalg_daxpy(-1, &x0.vector, xtp);
-    pn_norm = linalg_dnrm2(xtp);
-    linalg_dgemv(0, 1.0/pn_norm, rot, xtp, 0.0, &pn.vector);
-
-    // CASE 2: END/LAST BEAD [iend]
-    pn = gsl_matrix_row(m_pol_vec, iend);
-    pm = gsl_matrix_row(m_pol_vec, iend-1);
-
-    x1 = gsl_matrix_row(x, iend);
-    x0 = gsl_matrix_row(x, iend - 1);
-
-    gsl_vector_set_all(xtp,0);
-    linalg_daxpy(1, &x1.vector, xtp);
-    linalg_daxpy(-1, &x0.vector, xtp);
-
-    gsl_vector_set_all(xtp,0);
-    linalg_daxpy(1, &x1.vector, xtp);
-    linalg_daxpy(-1, &x0.vector, xtp);
-    pn_norm = linalg_dnrm2(xtp);
-    linalg_dgemv(0, 1.0/pn_norm, rot, xtp, 0.0, &pn.vector);
-
-    gsl_matrix_free(rot);
-  }
-
-  // Loop neighbors
-  for (size_t i=0; i<m_neighbors->m_npair; ++i)
-  {
-    n = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 0);
-    m = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 1);
-    pn = gsl_matrix_row(m_pol_vec, n);
-    pm = gsl_matrix_row(m_pol_vec, m);
-
-    gsl_vector_view xn = gsl_matrix_row(x, n);
-    gsl_vector_view xm = gsl_matrix_row(x, m);
-    gsl_vector_view fn = gsl_matrix_row(forces, n);
-    gsl_vector_view fm = gsl_matrix_row(forces, m);
-
-    // energy
-    double utp = energy_LJ_scal(&xn.vector, &xm.vector, &pn.vector, &pm.vector);
-    *u += utp;
-
-    gsl_vector_set_all(ftp,0.0);
-    force_LJ_scal(&xn.vector, &xm.vector, &pn.vector, &pm.vector, ftp);
-    linalg_daxpy(-1.0, ftp, &fn.vector);
-    linalg_daxpy(1.0, ftp, &fm.vector);
-  }
-
-  /* exit */
-  // free the temporary vectors (xtp, ftp)
-  gsl_vector_free(xtp);
-  gsl_vector_free(ftp);
-  return;
+  double dV = V_LJ_prime(u);
+  p.set_gradients(dV/s, -dV*(u/s)*0.5*m_sigma*m_alpha, fj, gi, gj);
+  return V_LJ(u) - V_LJ(m_rc_LJ);
 }
 
 //****************************************************************************
 // PolarPair48
 //****************************************************************************
 PolarPair48::PolarPair48(double eps, double sigma, double rc, double alpha, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
+  PolarChains(neighbors, chain_ends),
   m_eps(eps),
   m_sigma(sigma),
   m_rc(rc),
-  m_alpha(alpha),
-  m_neighbors(neighbors),
-  m_chain_ends(chain_ends)
-
+  m_alpha(alpha)
 {
   m_r0 = pow(2., 1./6)*m_sigma;
-
-  int imax = 0;
-  for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
-  {
-    int iend = it->second;                                   // iend assigned to iterator it that points to second (end of chain)
-    if (iend > imax) imax = iend;
-  }
-
-  m_pol_vec = gsl_matrix_calloc(imax+1, 3);
 }
 
 PolarPair48::~PolarPair48()
 {
-  gsl_matrix_free(m_pol_vec);
 }
 
-double PolarPair48::get_A(double phi, double ti, double tj){
-  double aij;
-
-  aij = -sin(phi - 0.5*(ti+tj))*sin(0.5*(tj-ti));  // in [-1,1]
-  return 1. - m_alpha*(aij + 1.);
-}
-
-double PolarPair48::get_A_dphi(double phi, double ti, double tj){
-  double aij_dphi;
-
-  aij_dphi = 0.5*(sin(phi-tj) - sin(phi-ti));
-
-  return -m_alpha*aij_dphi;
-}
-
-double PolarPair48::get_energy(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj){
-  double r, phi, ti, tj, A, energy, x, x4;
-  gsl_vector *xij(0);
-
-  xij = gsl_vector_calloc(3);
-
-  gsl_vector_memcpy(xij, xj);
-  linalg_daxpy(-1.0, xi, xij);
-  r = linalg_dnrm2(xij);
-  phi = utils::get_angle_2d(xij);
-  ti = utils::get_angle_2d(ni);
-  tj = utils::get_angle_2d(nj);
-  A = get_A(phi, ti, tj);
-
-  if (r < m_rc) {
-    x = (m_rc - r) / (m_rc - m_r0);
-    x4 = x*x*x*x;
-
-    energy = m_eps * x4 * (x4 - 2*A);
-  }
-
-  else {
-    energy = 0.0;
-  }
-
-  gsl_vector_free(xij);
-  return energy;
-}
-
-void PolarPair48::get_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force){
+double PolarPair48::pair_energy_force(const gsl_vector *xi, const gsl_vector *xj,
+                                      const gsl_vector *ni, const gsl_vector *nj,
+                                      gsl_vector *fj, gsl_vector *gi, gsl_vector *gj){
   /*
-   * compute the force applied by i on j.
-   * INPUT:
-   *   xi: coordinates i
-   *   xj: coordinates j
-   *   ni: polarity vector i
-   *   nj: polarity vector j
-   *   force: vector.
+   * U = eps x^4 (x^4 - 2A),  x = (rc - r)/(rc - r0),  A = 1 - alpha (1 + a).
+   *   dU/dr = -8 eps x^3 (x^4 - A)/(rc - r0),  dU/da = 2 alpha eps x^4.
    */
+  PolarPairGeometry p(xi, xj, ni, nj);
 
-  double r, phi, ti, tj, A, A_dphi, vx, vy, x, x4, fpref;
-  gsl_vector *er(0), *ephi(0);
+  gsl_vector_set_zero(fj);
+  gsl_vector_set_zero(gi);
+  gsl_vector_set_zero(gj);
+  if (p.r >= m_rc)
+    return 0.0;
 
-  er = gsl_vector_calloc(3);
-  ephi = gsl_vector_calloc(3);
-
-  // compute separation, vectors
-  gsl_vector_memcpy(er, xj);
-  linalg_daxpy(-1.0, xi, er);
-  r = linalg_dnrm2(er);
-  linalg_dscal(1./r, er);
-  vx = gsl_vector_get(er, 0);
-  vy = gsl_vector_get(er, 1);
-  gsl_vector_set(ephi, 0, -vy);
-  gsl_vector_set(ephi, 1, vx);
-
-  // compute angles
-  phi = utils::get_angle_2d(er);
-  ti = utils::get_angle_2d(ni);
-  tj = utils::get_angle_2d(nj);
-
-  // construct er, ephi vectors
-  // compute sigma, sigma derivative to phi
-  A = get_A(phi, ti, tj);
-  A_dphi = get_A_dphi(phi, ti, tj);
-
-  // other variables
-  x = (m_rc - r) / (m_rc - m_r0);
-  x4 = x*x*x*x;
-  fpref = 8*m_eps/(m_rc - r)*x4;
-
-  gsl_vector_set_all(force, 0.0);
-  if (r < m_rc) {
-    linalg_daxpy(fpref*(x4 - A), er, force);
-    linalg_daxpy(A_dphi*2.*m_eps*x4/r, ephi, force);
-  }
-
-  gsl_vector_free(er);
-  gsl_vector_free(ephi);
-  return;
-}
-
-void PolarPair48::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
-  /*
-   * Compute the potential energy and force (minus gradient) produced by pair Lennard-Jones interactions.
-   */
-
-  size_t n, m;
-  gsl_vector *xtp(0), *ftp(0);
-  gsl_vector_view pn, pm;
-
-  xtp = gsl_vector_calloc(3);
-  ftp = gsl_vector_calloc(3);
-
-  // chain polarity vector
-  for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
-  {
-    size_t istart = it->first;                                  // istart assigned to iterator it that points to first (beginning of chain)
-    size_t iend = it->second;                                   // iend assigned to iterator it that points to second (end of chain)
-    double pn_norm;
-    gsl_matrix *rot(0);
-    gsl_vector_view x0, x1, x2;
-
-    // rotation matrix around ez axis
-    rot = gsl_matrix_calloc(3,3);
-    gsl_matrix_set(rot, 0, 0, 0.0);
-    gsl_matrix_set(rot, 1, 0, 1.0);
-    gsl_matrix_set(rot, 0, 1, -1.0);
-    gsl_matrix_set(rot, 1, 1, 0.0);
-
-    // INTERIOR BEADS ([istart + 1] to [iend - 1])
-    for (size_t i = istart + 1; i < iend; i++)
-    {
-
-      x0 = gsl_matrix_row(x, i-1);
-      x2 = gsl_matrix_row(x, i+1);
-      pn = gsl_matrix_row(m_pol_vec,i);
-
-      gsl_vector_set_all(xtp, 0.0);
-      linalg_daxpy(1.0, &x2.vector, xtp);
-      linalg_daxpy(-1.0, &x0.vector, xtp);
-      pn_norm = linalg_dnrm2(xtp);
-      linalg_dgemv(0, 1.0/pn_norm, rot, xtp, 0.0, &pn.vector);
-    }
-
-    // ENDPOINTS
-    // CASE 1: START/FIRST BEAD [istart]
-    pn = gsl_matrix_row(m_pol_vec, istart);
-    pm = gsl_matrix_row(m_pol_vec, istart+1);
-
-    // Row Vectors
-    x0 = gsl_matrix_row(x, istart);
-    x1 = gsl_matrix_row(x, istart+1);
-
-    gsl_vector_set_all(xtp,0);
-    linalg_daxpy(1, &x1.vector, xtp);
-    linalg_daxpy(-1, &x0.vector, xtp);
-    pn_norm = linalg_dnrm2(xtp);
-    linalg_dgemv(0, 1.0/pn_norm, rot, xtp, 0.0, &pn.vector);
-
-    // CASE 2: END/LAST BEAD [iend]
-    pn = gsl_matrix_row(m_pol_vec, iend);
-    pm = gsl_matrix_row(m_pol_vec, iend-1);
-
-    x1 = gsl_matrix_row(x, iend);
-    x0 = gsl_matrix_row(x, iend - 1);
-
-    gsl_vector_set_all(xtp,0);
-    linalg_daxpy(1, &x1.vector, xtp);
-    linalg_daxpy(-1, &x0.vector, xtp);
-
-    gsl_vector_set_all(xtp,0);
-    linalg_daxpy(1, &x1.vector, xtp);
-    linalg_daxpy(-1, &x0.vector, xtp);
-    pn_norm = linalg_dnrm2(xtp);
-    linalg_dgemv(0, 1.0/pn_norm, rot, xtp, 0.0, &pn.vector);
-
-    gsl_matrix_free(rot);
-  }
-
-  // Loop neighbors
-  for (size_t i=0; i<m_neighbors->m_npair; ++i)
-  {
-    n = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 0);
-    m = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 1);
-    pn = gsl_matrix_row(m_pol_vec, n);
-    pm = gsl_matrix_row(m_pol_vec, m);
-
-    gsl_vector_view xn = gsl_matrix_row(x, n);
-    gsl_vector_view xm = gsl_matrix_row(x, m);
-    gsl_vector_view fn = gsl_matrix_row(forces, n);
-    gsl_vector_view fm = gsl_matrix_row(forces, m);
-
-    // energy
-    double utp = get_energy(&xn.vector, &xm.vector, &pn.vector, &pm.vector);
-    *u += utp;
-
-    gsl_vector_set_all(ftp,0.0);
-    get_force(&xn.vector, &xm.vector, &pn.vector, &pm.vector, ftp);
-    linalg_daxpy(-1.0, ftp, &fn.vector);
-    linalg_daxpy(1.0, ftp, &fm.vector);
-  }
-
-  /* exit */
-  // free the temporary vectors (xtp, ftp)
-  gsl_vector_free(xtp);
-  gsl_vector_free(ftp);
-  return;
+  double A = 1.0 - m_alpha*(1.0 + p.a);
+  double x = (m_rc - p.r)/(m_rc - m_r0);
+  double x3 = x*x*x;
+  double x4 = x3*x;
+  p.set_gradients(-8.0*m_eps*x3*(x4 - A)/(m_rc - m_r0), 2.0*m_alpha*m_eps*x4, fj, gi, gj);
+  return m_eps*x4*(x4 - 2.0*A);
 }
 
 //****************************************************************************
@@ -1287,6 +1044,7 @@ PolarPair48_2site::PolarPair48_2site(double eps_nn, double eps_ww, double eps_nw
     double rc_nn, double rc_ww, double rc_nw,
     double rho_n, double rho_w,
     NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
+  PolarChains(neighbors, chain_ends),
   m_eps_nn(eps_nn),
   m_eps_ww(eps_ww),
   m_eps_nw(eps_nw),
@@ -1297,44 +1055,26 @@ PolarPair48_2site::PolarPair48_2site(double eps_nn, double eps_ww, double eps_nw
   m_rc_ww(rc_ww),
   m_rc_nw(rc_nw),
   m_rho_n(rho_n),
-  m_rho_w(rho_w),
-  m_neighbors(neighbors),
-  m_chain_ends(chain_ends)
-
+  m_rho_w(rho_w)
 {
   m_r0_nn = pow(2., 1./6)*m_sigma_nn;
   m_r0_ww = pow(2., 1./6)*m_sigma_ww;
   m_r0_nw = pow(2., 1./6)*m_sigma_nw;
-
-  int imax = 0;
-  for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
-  {
-    int iend = it->second;        // iend assigned to iterator it that points to second (end of chain)
-    if (iend > imax) imax = iend;
-  }
-
-  m_pol_vec = gsl_matrix_calloc(imax+1, 3);
 }
 
 PolarPair48_2site::~PolarPair48_2site()
 {
-  gsl_matrix_free(m_pol_vec);
 }
 
 double PolarPair48_2site::potential(double r, double eps, double rc, double r0){
   /*
    * Compute the potential as a function of the distance and the value of the parameters.
    */
-
-  double x, x4;
-
   if (r < rc) {
-    x = (rc - r) / (rc - r0);
-    x4 = x*x*x*x;
-
+    double x = (rc - r) / (rc - r0);
+    double x4 = x*x*x*x;
     return eps * x4 * (x4 - 2.0);
   }
-
   else {
     return 0.0;
   }
@@ -1344,208 +1084,60 @@ double PolarPair48_2site::potential_deriv(double r, double eps, double rc, doubl
   /*
    * Compute the derivative of the potential as a function of the distance and the value of the parameters.
    */
-
-  double x, x4;
-
   if (r < rc) {
-    x = (rc - r) / (rc - r0);
-    x4 = x*x*x*x;
-
+    double x = (rc - r) / (rc - r0);
+    double x4 = x*x*x*x;
     return - 8.0 * eps * x4 / (rc-r) * (x4 - 1.0);
   }
-
   else {
     return 0.0;
   }
 }
 
-double PolarPair48_2site::get_energy_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force){
+double PolarPair48_2site::pair_energy_force(const gsl_vector *xi, const gsl_vector *xj,
+                                            const gsl_vector *ni, const gsl_vector *nj,
+                                            gsl_vector *fj, gsl_vector *gi, gsl_vector *gj){
   /*
-   * compute the force applied by i on j.
-   * INPUT:
-   *   xi: coordinates i
-   *   xj: coordinates j
-   *   ni: polarity vector i
-   *   nj: polarity vector j
-   *   force: vector.
+   * Sum over the 4 site pairs. A site of bead k sits at x_k + c n_k, with
+   * c = -rho_n (narrow) or +rho_w (wide). For a site pair with separation
+   *   y = (x_j + c_j n_j) - (x_i + c_i n_i)
+   * and force f = -U'(|y|) y/|y| on the site of j:
+   *   fj += f,  dU/dn_j += -c_j f,  dU/dn_i += c_i f.
    */
-  double r, energy, fnorm, vx, vy;
-  gsl_vector *xij(0), *yij(0), *xtp(0);
-  gsl_vector *er(0), *ephi(0);
+  struct SitePair { double eps, rc, r0, ci, cj; };
+  const SitePair site_pairs[4] = {
+    {m_eps_nn, m_rc_nn, m_r0_nn, -m_rho_n, -m_rho_n},   // narrow-narrow
+    {m_eps_ww, m_rc_ww, m_r0_ww, +m_rho_w, +m_rho_w},   // wide-wide
+    {m_eps_nw, m_rc_nw, m_r0_nw, -m_rho_n, +m_rho_w},   // narrow (i) - wide (j)
+    {m_eps_nw, m_rc_nw, m_r0_nw, +m_rho_w, -m_rho_n},   // wide (i) - narrow (j)
+  };
 
-  energy = 0.0;
-  gsl_vector_set_all(force, 0.0);
-  xij = gsl_vector_calloc(3);
-  yij = gsl_vector_calloc(3);
-  xtp = gsl_vector_calloc(3);
-  er = gsl_vector_calloc(3);
-  ephi = gsl_vector_calloc(3);
+  double energy = 0.0;
+  gsl_vector_set_zero(fj);
+  gsl_vector_set_zero(gi);
+  gsl_vector_set_zero(gj);
 
-  // compute separation, vectors
-  gsl_vector_memcpy(xij, xj);
-  linalg_daxpy(-1.0, xi, xij);
+  for (size_t s=0; s<4; ++s){
+    const SitePair &sp = site_pairs[s];
+    double y[3], r = 0.0;
+    for (size_t k=0; k<3; ++k){
+      y[k] = gsl_vector_get(xj, k) + sp.cj*gsl_vector_get(nj, k)
+           - gsl_vector_get(xi, k) - sp.ci*gsl_vector_get(ni, k);
+      r += y[k]*y[k];
+    }
+    r = sqrt(r);
+    if (r >= sp.rc)
+      continue;
 
-  // compute polar coordinates basis
-  gsl_vector_memcpy(er, xij);
-  linalg_dscal(1./linalg_dnrm2(er), er);
-  vx = gsl_vector_get(er, 0);
-  vy = gsl_vector_get(er, 1);
-  gsl_vector_set(ephi, 0, -vy);
-  gsl_vector_set(ephi, 1, vx);
-
-  // narrow-narrow
-  gsl_vector_memcpy(xtp, nj);
-  linalg_daxpy(-1.0, ni, xtp);
-  gsl_vector_memcpy(yij, xij);
-  linalg_daxpy(-m_rho_n, xtp, yij);
-  r = linalg_dnrm2(yij);
-  energy += potential(r, m_eps_nn, m_rc_nn, m_r0_nn);
-  fnorm = -potential_deriv(r, m_eps_nn, m_rc_nn, m_r0_nn);
-  linalg_daxpy(fnorm/r, yij, force);
-
-  // wide-wide
-  gsl_vector_memcpy(xtp, nj);
-  linalg_daxpy(-1.0, ni, xtp);
-  gsl_vector_memcpy(yij, xij);
-  linalg_daxpy(m_rho_w, xtp, yij);
-  r = linalg_dnrm2(yij);
-  energy += potential(r, m_eps_ww, m_rc_ww, m_r0_ww);
-  fnorm = -potential_deriv(r, m_eps_ww, m_rc_ww, m_r0_ww);
-  linalg_daxpy(fnorm/r, yij, force);
-
-  // narrow-wide
-  gsl_vector_set_all(xtp, 0.0);
-  linalg_daxpy(m_rho_w, nj, xtp);
-  linalg_daxpy(m_rho_n, ni, xtp);
-  gsl_vector_memcpy(yij, xij);
-  linalg_daxpy(1.0, xtp, yij);
-  r = linalg_dnrm2(yij);
-  energy += potential(r, m_eps_nw, m_rc_nw, m_r0_nw);
-  fnorm = -potential_deriv(r, m_eps_nw, m_rc_nw, m_r0_nw);
-  linalg_daxpy(fnorm/r, yij, force);
-
-  // wide-narrow
-  gsl_vector_set_all(xtp, 0.0);
-  linalg_daxpy(m_rho_n, nj, xtp);
-  linalg_daxpy(m_rho_w, ni, xtp);
-  gsl_vector_memcpy(yij, xij);
-  linalg_daxpy(-1.0, xtp, yij);
-  r = linalg_dnrm2(yij);
-  energy += potential(r, m_eps_nw, m_rc_nw, m_r0_nw);
-  fnorm = -potential_deriv(r, m_eps_nw, m_rc_nw, m_r0_nw);
-  linalg_daxpy(fnorm/r, yij, force);
-
-  // exit
-  gsl_vector_free(xij);
-  gsl_vector_free(yij);
-  gsl_vector_free(xtp);
-  gsl_vector_free(er);
-  gsl_vector_free(ephi);
+    energy += potential(r, sp.eps, sp.rc, sp.r0);
+    double fnorm = -potential_deriv(r, sp.eps, sp.rc, sp.r0)/r;
+    for (size_t k=0; k<3; ++k){
+      double f = fnorm*y[k];
+      gsl_vector_set(fj, k, gsl_vector_get(fj, k) + f);
+      gsl_vector_set(gj, k, gsl_vector_get(gj, k) - sp.cj*f);
+      gsl_vector_set(gi, k, gsl_vector_get(gi, k) + sp.ci*f);
+    }
+  }
 
   return energy;
-}
-
-void PolarPair48_2site::energy_force(gsl_matrix *x, double *u, gsl_matrix *forces){
-  /*
-   * Compute the potential energy and force (minus gradient) produced by pair Lennard-Jones interactions.
-   */
-
-  size_t n, m;
-  gsl_vector *xtp(0), *ftp(0);
-  gsl_vector_view pn, pm;
-
-  xtp = gsl_vector_calloc(3);
-  ftp = gsl_vector_calloc(3);
-
-  // chain polarity vector
-  for (vector<pair<size_t, size_t> >::iterator it=m_chain_ends.begin(); it!=m_chain_ends.end(); ++it)
-  {
-    size_t istart = it->first; // istart assigned to iterator it that points to first (beginning of chain)
-    size_t iend = it->second;  // iend assigned to iterator it that points to second (end of chain)
-    double pn_norm;
-    gsl_matrix *rot(0);
-    gsl_vector_view x0, x1, x2;
-
-    // rotation matrix around ez axis
-    rot = gsl_matrix_calloc(3,3);
-    gsl_matrix_set(rot, 0, 0, 0.0);
-    gsl_matrix_set(rot, 1, 0, 1.0);
-    gsl_matrix_set(rot, 0, 1, -1.0);
-    gsl_matrix_set(rot, 1, 1, 0.0);
-
-    // INTERIOR BEADS ([istart + 1] to [iend - 1])
-    for (size_t i = istart + 1; i < iend; i++)
-    {
-
-      x0 = gsl_matrix_row(x, i-1);
-      x2 = gsl_matrix_row(x, i+1);
-      pn = gsl_matrix_row(m_pol_vec,i);
-
-      gsl_vector_set_all(xtp, 0.0);
-      linalg_daxpy(1.0, &x2.vector, xtp);
-      linalg_daxpy(-1.0, &x0.vector, xtp);
-      pn_norm = linalg_dnrm2(xtp);
-      linalg_dgemv(0, 1.0/pn_norm, rot, xtp, 0.0, &pn.vector);
-    }
-
-    // ENDPOINTS
-    // CASE 1: start/first bead [istart]
-    pn = gsl_matrix_row(m_pol_vec, istart);
-    pm = gsl_matrix_row(m_pol_vec, istart+1);
-
-    // Row Vectors
-    x0 = gsl_matrix_row(x, istart);
-    x1 = gsl_matrix_row(x, istart+1);
-
-    gsl_vector_set_all(xtp,0);
-    linalg_daxpy(1, &x1.vector, xtp);
-    linalg_daxpy(-1, &x0.vector, xtp);
-    pn_norm = linalg_dnrm2(xtp);
-    linalg_dgemv(0, 1.0/pn_norm, rot, xtp, 0.0, &pn.vector);
-
-    // CASE 2: end/last bead [iend]
-    pn = gsl_matrix_row(m_pol_vec, iend);
-    pm = gsl_matrix_row(m_pol_vec, iend-1);
-
-    x1 = gsl_matrix_row(x, iend);
-    x0 = gsl_matrix_row(x, iend - 1);
-
-    gsl_vector_set_all(xtp,0);
-    linalg_daxpy(1, &x1.vector, xtp);
-    linalg_daxpy(-1, &x0.vector, xtp);
-
-    gsl_vector_set_all(xtp,0);
-    linalg_daxpy(1, &x1.vector, xtp);
-    linalg_daxpy(-1, &x0.vector, xtp);
-    pn_norm = linalg_dnrm2(xtp);
-    linalg_dgemv(0, 1.0/pn_norm, rot, xtp, 0.0, &pn.vector);
-
-    gsl_matrix_free(rot);
-  }
-
-  // Loop neighbors
-  for (size_t i=0; i<m_neighbors->m_npair; ++i)
-  {
-    n = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 0);
-    m = gsl_matrix_uint_get(m_neighbors->m_pairs, i, 1);
-    pn = gsl_matrix_row(m_pol_vec, n);
-    pm = gsl_matrix_row(m_pol_vec, m);
-
-    gsl_vector_view xn = gsl_matrix_row(x, n);
-    gsl_vector_view xm = gsl_matrix_row(x, m);
-    gsl_vector_view fn = gsl_matrix_row(forces, n);
-    gsl_vector_view fm = gsl_matrix_row(forces, m);
-
-    // energy and force
-    double utp = get_energy_force(&xn.vector, &xm.vector, &pn.vector, &pm.vector, ftp);
-    *u += utp;
-
-    linalg_daxpy(-1.0, ftp, &fn.vector);
-    linalg_daxpy(1.0, ftp, &fm.vector);
-  }
-
-  /* exit */
-  gsl_vector_free(xtp);
-  gsl_vector_free(ftp);
-  return;
 }

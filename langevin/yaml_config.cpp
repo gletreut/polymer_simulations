@@ -217,6 +217,10 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     key = it->first.as<string>();
     FNode = it->second;
 
+    // the polarity n = ez x t is defined only for planar chains
+    if (key.compare(0, 5, "Polar") == 0 && world->m_dim != 2)
+      throw invalid_argument(key + " requires MDWorld.dim = 2.");
+
     // ConfinementBox (legacy spelling: ConfinmentBox)
     if (key == "ConfinementBox" || key == "ConfinmentBox") {
       double sigma, epsilon;

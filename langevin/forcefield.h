@@ -18,6 +18,7 @@
 #include <sstream>
 #include <cmath>
 #include <vector>
+#include <algorithm>
 #include <limits>
 #include <stdexcept>
 
@@ -240,36 +241,82 @@ class PairLJ : public ForceField {
     void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
 };
 
-class PolarPairLJ : public PairLJ {
+class PolarChains : public ForceField {
   /*
-   * Class defining a force field for Lennard-Jones pair potential (Polarity Vector Included)
+   * Base class for pair force fields between polar beads, in 2D.
    *
+   * The polarity of bead k is the in-plane normal to its chain:
+   *   n_k = ez x t_k / |t_k|,  t_k = x_{k+} - x_{k-},
+   * with (k+, k-) = (k+1, k-1) for interior beads, (k+1, k) at the chain start
+   * and (k, k-1) at the chain end.
+   *
+   * The pair energy depends on n_k, hence on x_{k+} and x_{k-}. With
+   * g_k = dU/dn_k and J_k = dn_k/dt_k, the force therefore includes
+   *   F_{k+} -= J_k^T g_k,  F_{k-} += J_k^T g_k,
+   * where, in 2D, J_k^T g_k = -(t_k/|t_k| . g_k) n_k / |t_k|.
+   *
+   * Every particle must belong to exactly one chain of at least 2 beads.
    */
 
   public:
     /* attributes */
+    NeighborList *m_neighbors;
     std::vector<std::pair<size_t, size_t> > m_chain_ends;
+    gsl_matrix *m_pol_vec;        // n_k
+    gsl_matrix *m_pol_grad;       // g_k = dU/dn_k
+    std::vector<double> m_tnorm;  // |t_k|
+
+    /* constructor and destructor */
+    PolarChains(NeighborList *neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
+    virtual ~PolarChains();
+
+    /* methods */
+    // Pair energy; sets fj = force on j at fixed polarities (the force on i is -fj),
+    // gi = dU/dn_i and gj = dU/dn_j.
+    virtual double pair_energy_force(const gsl_vector *xi, const gsl_vector *xj,
+                                     const gsl_vector *ni, const gsl_vector *nj,
+                                     gsl_vector *fj, gsl_vector *gi, gsl_vector *gj) = 0;
+    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+    void update_polarity(const gsl_matrix *x);
+
+  protected:
+    void add_polarity_forces(gsl_matrix *forces);
+};
+
+class PolarPairLJ : public PolarChains {
+  /*
+   * Lennard-Jones pair potential with a polarity-dependent diameter:
+   *   U = V(r/s) - V(rc),  V(u) = 4 eps (u^-12 - u^-6),
+   *   s = sigma (1 + alpha (1 + a)/2),  a = (n_i - n_j).e_ij / 2  in [-1, 1],
+   * with e_ij the unit vector from i to j. The cutoff rc is in units of s.
+   */
+
+  public:
+    /* attributes */
+    double m_eps;
+    double m_sigma;
+    double m_rc_LJ;
     double m_alpha;
-    gsl_matrix *m_pol_vec;
 
     /* constructor and destructor */
     PolarPairLJ(double eps, double sigma, double rc_LJ, double alpha, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
     ~PolarPairLJ();
 
     /* methods */
-    double V_LJ(double rhat);
-    double V_LJ_prime(double rhat);
-    double get_sigma(double phi, double ti, double tj);
-    double get_sigma_dphi(double phi, double ti, double tj);
-    double energy_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
-    void force_LJ_scal(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
-    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+    double V_LJ(double u);
+    double V_LJ_prime(double u);
+    double pair_energy_force(const gsl_vector *xi, const gsl_vector *xj,
+                             const gsl_vector *ni, const gsl_vector *nj,
+                             gsl_vector *fj, gsl_vector *gi, gsl_vector *gj);
 };
 
-class PolarPair48 : public ForceField {
+class PolarPair48 : public PolarChains {
   /*
-   * Class defining a force field as in H. Li and G. Lykotrafitis. “Two-component coarse-grained molecular-dynamics model
-   * for the human erythrocyte membrane”. In: Biophysical journal 102.1 (2012).
+   * Pair potential as in H. Li and G. Lykotrafitis. "Two-component coarse-grained molecular-dynamics model
+   * for the human erythrocyte membrane". In: Biophysical journal 102.1 (2012):
+   *   U = eps x^4 (x^4 - 2A) for r < rc,  x = (rc - r)/(rc - r0),  r0 = 2^(1/6) sigma,
+   *   A = 1 - alpha (1 + a),  a = (n_i - n_j).e_ij / 2.
+   * The cutoff rc is absolute.
    */
 
   public:
@@ -279,27 +326,23 @@ class PolarPair48 : public ForceField {
     double m_r0;
     double m_rc;
     double m_alpha;
-    NeighborList *m_neighbors;
-    std::vector<std::pair<size_t, size_t> > m_chain_ends;
-    gsl_matrix *m_pol_vec;
 
     /* constructor and destructor */
     PolarPair48(double eps, double sigma, double rc, double alpha, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
     ~PolarPair48();
 
     /* methods */
-    double get_A(double phi, double ti, double tj);
-    double get_A_dphi(double phi, double ti, double tj);
-    double get_energy(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj);
-    void get_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
-    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+    double pair_energy_force(const gsl_vector *xi, const gsl_vector *xj,
+                             const gsl_vector *ni, const gsl_vector *nj,
+                             gsl_vector *fj, gsl_vector *gi, gsl_vector *gj);
 };
 
-class PolarPair48_2site : public ForceField {
+class PolarPair48_2site : public PolarChains {
   /*
-   * Class defining a force field as in H. Li and G. Lykotrafitis. “Two-component coarse-grained molecular-dynamics model
-   * for the human erythrocyte membrane”. In: Biophysical journal 102.1 (2012).
-   * Object with 2 sites aligned along the polarity vectors.
+   * Each bead carries a narrow site at x - rho_n n and a wide site at x + rho_w n.
+   * Sites interact by U = eps x^4 (x^4 - 2) for r < rc, x = (rc - r)/(rc - r0),
+   * r0 = 2^(1/6) sigma, with (eps, sigma, rc) depending on the pair of site types.
+   * The cutoffs rc are absolute.
    */
 
   public:
@@ -309,9 +352,6 @@ class PolarPair48_2site : public ForceField {
     double m_r0_nn, m_r0_ww, m_r0_nw;
     double m_rc_nn, m_rc_ww, m_rc_nw;
     double m_rho_n, m_rho_w;
-    NeighborList *m_neighbors;
-    std::vector<std::pair<size_t, size_t> > m_chain_ends;
-    gsl_matrix *m_pol_vec;
 
     /* constructor and destructor */
     PolarPair48_2site(double eps_nn, double eps_ww, double eps_nw,
@@ -324,7 +364,8 @@ class PolarPair48_2site : public ForceField {
     /* methods */
     double potential(double r, double eps, double rc, double r0);
     double potential_deriv(double r, double eps, double rc, double r0);
-    double get_energy_force(const gsl_vector *xi, const gsl_vector *xj, const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force);
-    void energy_force(gsl_matrix *x, double *u, gsl_matrix *forces);
+    double pair_energy_force(const gsl_vector *xi, const gsl_vector *xj,
+                             const gsl_vector *ni, const gsl_vector *nj,
+                             gsl_vector *fj, gsl_vector *gi, gsl_vector *gj);
 };
 #endif

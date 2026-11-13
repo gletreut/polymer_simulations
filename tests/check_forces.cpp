@@ -131,24 +131,7 @@ static EnergyForce wrap(ForceField *ff) {
   };
 }
 
-/* per-class pair routines: return energy, set force on j */
-static double pair_energy_force(PolarPairLJ *ff, const gsl_vector *xi, const gsl_vector *xj,
-                                const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force) {
-  ff->force_LJ_scal(xi, xj, ni, nj, force);
-  return ff->energy_LJ_scal(xi, xj, ni, nj);
-}
-static double pair_energy_force(PolarPair48 *ff, const gsl_vector *xi, const gsl_vector *xj,
-                                const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force) {
-  ff->get_force(xi, xj, ni, nj, force);
-  return ff->get_energy(xi, xj, ni, nj);
-}
-static double pair_energy_force(PolarPair48_2site *ff, const gsl_vector *xi, const gsl_vector *xj,
-                                const gsl_vector *ni, const gsl_vector *nj, gsl_vector *force) {
-  return ff->get_energy_force(xi, xj, ni, nj, force);
-}
-
-template <class T>
-static EnergyForce wrap_frozen_polarity(T *ff) {
+static EnergyForce wrap_frozen_polarity(PolarChains *ff) {
   /*
    * Diagnostic: energy and force with the polarity vectors frozen at their
    * current values (computed once by energy_force at the reference x).
@@ -157,6 +140,7 @@ static EnergyForce wrap_frozen_polarity(T *ff) {
   return [ff](gsl_matrix *x, gsl_matrix *f) {
     double u = 0.;
     gsl_vector *ftp = gsl_vector_calloc(3);
+    gsl_vector *gi = gsl_vector_calloc(3), *gj = gsl_vector_calloc(3);
     gsl_matrix_set_all(f, 0.);
     NeighborList *nl = ff->m_neighbors;
     for (size_t k=0; k<nl->m_npair; ++k) {
@@ -165,11 +149,13 @@ static EnergyForce wrap_frozen_polarity(T *ff) {
       gsl_vector_view xn = gsl_matrix_row(x, n), xm = gsl_matrix_row(x, m);
       gsl_vector_view pn = gsl_matrix_row(ff->m_pol_vec, n), pm = gsl_matrix_row(ff->m_pol_vec, m);
       gsl_vector_view fn = gsl_matrix_row(f, n), fm = gsl_matrix_row(f, m);
-      u += pair_energy_force(ff, &xn.vector, &xm.vector, &pn.vector, &pm.vector, ftp);
+      u += ff->pair_energy_force(&xn.vector, &xm.vector, &pn.vector, &pm.vector, ftp, gi, gj);
       gsl_vector_sub(&fn.vector, ftp);
       gsl_vector_add(&fm.vector, ftp);
     }
     gsl_vector_free(ftp);
+    gsl_vector_free(gi);
+    gsl_vector_free(gj);
     return u;
   };
 }

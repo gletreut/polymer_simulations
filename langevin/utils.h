@@ -27,8 +27,6 @@
 // utils
 namespace utils {
   void print_vector(std::ostream &mystream, gsl_vector *v);
-
-  double get_angle_2d(const gsl_vector *v);
 };
 
 #endif
