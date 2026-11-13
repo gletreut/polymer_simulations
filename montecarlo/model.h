@@ -18,12 +18,10 @@
 #include <vector>
 #include <limits>
 #include <stdexcept>
-#include <time.h>
+#include <ostream>
 
-#include "numerical_recipes/nr3.h"
-#include "numerical_recipes/gamma.h"
-#include "numerical_recipes/ran.h"
-#include "numerical_recipes/deviates.h"
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 
 
 class MonteCarloObject {
@@ -40,9 +38,9 @@ class Polymer : public MonteCarloObject {
 	int N;
 	double lp;
 	std::vector<std::vector<double> > xyz, xyzn;
-	Normaldev *ran;
+	gsl_rng *rng;
 
-	Polymer(int N_, double lp_);
+	Polymer(int N_, double lp_, unsigned long seed);
 	~Polymer();
 
 	virtual double energy();
@@ -51,7 +49,7 @@ class Polymer : public MonteCarloObject {
 
 	double distance(std::vector<double> &ri, std::vector<double> &rj);
 	void init();
-	void print_current(ostream &mystream);
+	void print_current(std::ostream &mystream);
 
 };
 

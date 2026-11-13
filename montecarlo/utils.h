@@ -88,6 +88,7 @@ void load_params(std::istream &mystream, std::map<std::string,T> &params){
 		convert.str(line);
 
 		if (convert >> key) {// there is a string
+			if (key[0] == '#') continue; // comment line
 			if (convert >> val) {// there is a value
 				params[key]=val;
 				std::cout << std::setw(30) << key;

@@ -5,8 +5,8 @@
 //  G. Le Treut - IPhT, CEA
 //
 //
-//  Compilation with:
-//  g++ -std=c++11 main.cpp
+//  Build with `make` (requires GSL); run with:
+//  ../bin/simu_montecarlo < ../configs/config_montecarlo
 //----------------------------------------------------------------------------
 
 #include <cstdlib>
@@ -18,9 +18,8 @@
 #include <limits>
 #include <map>
 
-#include "model.cpp"
-#include "utils.cpp"
-#include "geometry.cpp"
+#include "model.h"
+#include "utils.h"
 
 using namespace std;
 using namespace string_utils;
@@ -30,32 +29,22 @@ double macheps=std::numeric_limits<double>::epsilon();
 
 //** MAIN
 int main(int argc, char *argv[]){
-	string pathtoinput, pathtooutput, name;
+	string pathtooutput;
 	stringstream convert;
-	vector<string> parsechain;
-	ifstream fin;
-	ofstream fpol,fen;
+	ofstream fpol;
 	map<string,double> params;
-	double dt, T, lp;
+	double T, lp;
 	long long int iter;
 	int dump,N;
-	vector<vector<double> > kmap;
+	unsigned long seed;
 
 //-----------------------------------------------
 //** INITIALIZATION
 //-----------------------------------------------
-	cout << "Enter parameters values in the form: <key> <value> for the following keys: (iter,N,T,lp)" << endl;
+	cout << "Enter parameters values in the form: <key> <value> for the following keys: (iter,N,T,lp,dump[,seed])" << endl;
 	load_params<double>(cin,params);
 	cout << "You entered the following parameters:" << endl;
 	print_map(cout,params);
-
-//	parsechain=split(pathtoinput,'.'); // remove extension
-//	if (parsechain[0] == "/")
-//		name="./";
-//	else
-//		name=parsechain[0];
-//	for (size_t i=1; i<parsechain.size()-1; i++)
-//		name+="." + parsechain[i];
 
 	convert.clear();
 	convert.str("");
@@ -65,22 +54,19 @@ int main(int argc, char *argv[]){
 	fpol << left;
   cout << "output file: " << pathtooutput << endl;
 
-	fin.open(pathtoinput.c_str());
-	load_map<double>(fin,kmap);
-	fin.close();
-
 	iter=params["iter"];
 	dump=params["dump"];
 	T=params["T"];
 	lp=params["lp"];
 	N=params["N"];
+	seed=params.count("seed") ? (unsigned long) params["seed"] : 12345;
   print_map(cout, params);
 
 //-----------------------------------------------
 //	METROPOLIS MONTE-CARLO
 //-----------------------------------------------
-	Polymer pol(N,lp);
-	for (int i=0; i<=iter; i++){
+	Polymer pol(N,lp,seed);
+	for (long long int i=0; i<=iter; i++){
 		pol.gen();
 		pol.accept(T);
 
@@ -93,7 +79,6 @@ int main(int argc, char *argv[]){
 			pol.print_current(fpol);
 		}
 	}
-	//load_map<double>(fin,cmap_raw);
 
 
 //-----------------------------------------------

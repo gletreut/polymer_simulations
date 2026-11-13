@@ -9,6 +9,8 @@
 //*
 //*******************************************************************************
 
+#include <iomanip>
+
 #include "model.h"
 #include "geometry.h"
 
@@ -18,15 +20,12 @@ using namespace geometry;
 //void algebra_transformation_crankshaft(vector<vector<double> > xyz, int r1, int r2, double theta, vector<vector<double> > xyzn) {return;}
 //void algebra_transformation_pivot(vector<vector<double> > xyz, int r1, vector<double> v, double theta, vector<vector<double> > xyzn) {return;}
 
-Polymer::Polymer(int N_, double lp_) : lp(lp_), N(N_) {
-		long long int seconds;
-		int ndigit=4, seed;
+Polymer::Polymer(int N_, double lp_, unsigned long seed) : N(N_), lp(lp_) {
 		cout << left << setprecision(8) << fixed;
 
-		seconds=time(NULL); // seconds since 1970
-		seed=int( seconds % int(pow(10,ndigit)) );
 		cout << "seed=" << seed << endl;
-		ran=new Normaldev(0.0,1.0,seed);
+		rng=gsl_rng_alloc(gsl_rng_mt19937);
+		gsl_rng_set(rng, seed);
 
 		init();
 		xyzn=xyz;
@@ -34,7 +33,7 @@ Polymer::Polymer(int N_, double lp_) : lp(lp_), N(N_) {
 }
 
 Polymer::~Polymer(){
-	delete ran;
+	gsl_rng_free(rng);
 }
 
 double Polymer::energy(){
@@ -63,25 +62,26 @@ void Polymer::gen(){
 	/*
 	 * generate a new configuration from the current one
 	 */
-	double PI=3.14159265359, rc, r1, r2, theta, vnrm;
+	double PI=3.14159265359, theta, vnrm;
+	int rc, r1, r2;
 	vector<double> v(3);
 
-	rc=int(ran->doub()*2);
+	rc=int(gsl_rng_uniform(rng)*2);
 
 	if (rc == 0) {// Crankshaft move
-		r1=int(ran->doub()*N);
+		r1=int(gsl_rng_uniform(rng)*N);
 		r2=r1;
 		while (r1==r2)
-			r2=int(ran->doub()*N);
-		theta=2.0*PI*ran->doub();
+			r2=int(gsl_rng_uniform(rng)*N);
+		theta=2.0*PI*gsl_rng_uniform(rng);
 		algebra_transformation_crankshaft(xyz,r1,r2,theta,xyzn);
 	}
 	else { // Pivot move
-		r1=int(ran->doub()*N);
-		theta=2.0*PI*ran->doub();
-		v[0]=ran->dev();
-		v[1]=ran->dev();
-		v[2]=ran->dev();
+		r1=int(gsl_rng_uniform(rng)*N);
+		theta=2.0*PI*gsl_rng_uniform(rng);
+		v[0]=gsl_ran_gaussian(rng, 1.0);
+		v[1]=gsl_ran_gaussian(rng, 1.0);
+		v[2]=gsl_ran_gaussian(rng, 1.0);
 		vnrm=sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
 		v[0]/=vnrm;
 		v[1]/=vnrm;
@@ -95,7 +95,7 @@ void Polymer::accept(const double t){
 	double r, Enew;
 
 	Enew=energy();
-	r=ran->doub();
+	r=gsl_rng_uniform(rng);
 	if (r < exp(-(Enew-E)/t) ) {// accept
 		xyz=xyzn;
 		E=Enew;
