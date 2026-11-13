@@ -4,25 +4,28 @@ channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64"]
 
 [dependencies]
-# C++ toolchain and libraries for langevin/
+# C++ toolchain and libraries
 cxx-compiler = "*"
 make = "*"
 gsl = "*"
-libboost-devel = "*"
 yaml-cpp = "*"
 # Python analysis scripts
 python = "3.12.*"
 numpy = "*"
-scipy = "*"
-matplotlib = "*"
 pyyaml = "*"
 
 [tasks]
 build = "make -C langevin"
-clean = "make -C langevin clean"
+build-mc = "make -C montecarlo"
+check = "make -C langevin check"
+golden = "make -C langevin golden"
+clean = "make -C langevin clean && make -C montecarlo clean"
 
+# visualization with PyMOL (pymol/); movies need ffmpeg and ImageMagick
 [feature.viz.dependencies]
 pymol-open-source = "*"
+ffmpeg = "*"
+imagemagick = "*"
 
 [environments]
 viz = ["viz"]
