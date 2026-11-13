@@ -3,28 +3,19 @@ This repository contains code for performing simulations of a semi-flexible poly
 * Monte-Carlo. It uses the Metropolis-Hasting algorithm. Configurations are generated through crankshaft and pivot moves. The elasticity is not taken into account and the bond length between monomers remains unchanged.
 * Langevin. It uses Langevin dynamics. An integration time step needs to be specified.
 
-## Environment
-The following pacakges are needed:
-* `gsl`
-* `boost-cpp`
-* `yaml-cpp`
+## Environment and compilation
+The environment is managed with [pixi](https://pixi.sh): `pixi.toml` lists the compiler, `gsl`, `boost`, `yaml-cpp` and the Python packages, all from conda-forge. `pixi.lock` pins the exact versions.
 
-The conda environment needs to be configured. Namely the `include` and `library` paths need to be added to the path.
-Copy-paste the directory `script/etc` into `$CONDA_PREFIX/`. This makes sure that when
-activating the conda environment, `include` and `library` paths in `$CONDA_PREFIX/`
-(default installation directory when installing packages with `conda install ...`) are
-added to the `PATH` bash variable.
+Install pixi, then build the Langevin code from the repository root:
+```
+pixi run build
+```
+The first call creates the local environment in `.pixi/` and compiles `bin/simu_langevin`. The binary keeps the path to the environment libraries, so it runs without activating the environment.
 
-## Compilation
-Compilation of both implementations is achieved through:
-```
-make -C langevin/
-```
-
-If there is a problem with the compilation, use instead:
-```
-g++ -std=c++11 -O3 -Wall -DGSL main.cpp model.cpp utils.cpp forcefield.cpp linalg.cpp stepper cpp constraint.cpp integration.cpp yaml_config.cpp -o ../bin/simu_langevin -lm -lgsl -lgslcblas -lboost_filesystem -lboost_system -lyaml-cpp
-```
+Other commands:
+* `pixi shell`: start a shell in the environment.
+* `pixi run python analysis/analyze_trajectory.py ...`: run an analysis script.
+* `pixi shell -e viz`: start a shell in the environment with PyMOL.
 
 ## Execution
 The program is then executed as follows:

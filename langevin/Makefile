@@ -16,7 +16,7 @@ else
 CFLAGS += -DGSL
 LDLIBS += -lgsl -lgslcblas
 endif
-LDLIBS += -lboost_filesystem -lboost_system
+LDLIBS += -lboost_filesystem
 LDLIBS += -lyaml-cpp
 
 SRC = main.cpp model.cpp utils.cpp forcefield.cpp neighborlist.cpp linalg.cpp stepper.cpp constraint.cpp integration.cpp yaml_config.cpp
