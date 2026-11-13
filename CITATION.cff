@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Polymer simulations"
+abstract: "Langevin dynamics and Monte-Carlo simulations of coarse-grained bead-spring polymers."
+type: software
+authors:
+  - family-names: "Le Treut"
+    given-names: "Guillaume"
+    email: "guillaume.letreut@gmail.com"
+contributors:
+  - family-names: "Avalos"
+    given-names: "Oscar"
+version: "1.0.0"
+date-released: "2026-11-12"
+license: MIT
+repository-code: "https://github.com/gletreut/polymer_simulations"
+keywords:
+  - polymer physics
+  - Langevin dynamics
+  - Monte-Carlo
