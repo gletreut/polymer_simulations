@@ -73,8 +73,7 @@ class MDWorld {
     void update_energy_kinetics();
     void constrain_x();
     void constrain_v();
-    bool check_neighbor_lists();
-    void update_neighbor_lists(size_t iter);
+    bool update_neighbor_lists(size_t iter, bool force=false);
 
     // dump methods
     void dump_pos(std::ostream &mystream, bool index=true, bool positions=true, bool velocities=false, bool forces=false);

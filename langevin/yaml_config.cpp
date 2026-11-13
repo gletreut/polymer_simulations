@@ -12,6 +12,12 @@ using namespace std;
 //* yaml_config namespace
 //****************************************************************************
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+static void check_chain(const string &key, size_t offset, size_t N, size_t npart){
+  /* a chain occupies particles offset..offset+N-1 and has at least 2 beads */
+  if (N < 2 || offset + N > npart)
+    throw invalid_argument(key + ": the chain (offset, N) must have N >= 2 and fit in 0..npart-1.");
+}
+
 void yaml_config::init_world(YAML::Node config, gsl_rng *rng, MDWorld* &world) {
   /*
    * Re-initialize the MDWorld object based on the input parameters.
@@ -255,6 +261,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       cout << FNode << endl;
       offset = FNode["offset"].as<size_t>();
       N = FNode["N"].as<size_t>();
+      check_chain(key, offset, N, world->m_npart);
       b = FNode["b"].as<double>();
       ffield = new PolymerGaussian(offset, N, b, world->m_bonds);
       world->m_ffields.push_back(ffield);
@@ -269,6 +276,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       cout << FNode << endl;
       offset = FNode["offset"].as<size_t>();
       N = FNode["N"].as<size_t>();
+      check_chain(key, offset, N, world->m_npart);
       ke = FNode["ke"].as<double>();
       r0 = FNode["r0"].as<double>();
       ffield = new PolymerHarmonic(offset, N, ke, r0, world->m_bonds);
@@ -284,6 +292,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       cout << FNode << endl;
       offset = FNode["offset"].as<size_t>();
       N = FNode["N"].as<size_t>();
+      check_chain(key, offset, N, world->m_npart);
       ke = FNode["ke"].as<double>();
       rc = FNode["rc"].as<double>();
       sigma = FNode["sigma"].as<double>();
@@ -301,6 +310,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       cout << FNode << endl;
       offset = FNode["offset"].as<size_t>();
       N = FNode["N"].as<size_t>();
+      check_chain(key, offset, N, world->m_npart);
       lp = FNode["lp"].as<double>();
       ffield = new PolymerKratkyPorod(offset, N, lp, world->m_bonds);
       world->m_ffields.push_back(ffield);
@@ -499,7 +509,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_ffields.push_back(ffield);
     }
     else {
-      cout << "Unrecognized force field type: " << key << endl;
+      throw invalid_argument("Unrecognized force field type: " + key);
     }
   }
   return;
@@ -587,7 +597,7 @@ void yaml_config::init_constraints(YAML::Node config, MDWorld* &world) {
       world->m_constraints.push_back(constraint);
     }
     else {
-      cout << "Unrecognized constraint type: " << key << endl;
+      throw invalid_argument("Unrecognized constraint type: " + key);
     }
   }
   return;
@@ -635,6 +645,8 @@ void yaml_config::init_integration_params(YAML::Node config, IntegrationParams &
     throw invalid_argument("Missing key: <thermo><idump>");
   }
   iparams.idump_thermo = size_t(idump_thermo.as<double>());
+  if (iparams.idump_thermo == 0)
+    throw invalid_argument("<thermo><idump> must be positive.");
 
   // neighbor list
   YAML::Node ineighbor_build = lineup["neighbor_build"];
@@ -648,6 +660,8 @@ void yaml_config::init_integration_params(YAML::Node config, IntegrationParams &
     throw invalid_argument("Missing key: <positions><idump>");
   }
   iparams.idump_pos = size_t(idump_pos.as<double>());
+  if (iparams.idump_pos == 0)
+    throw invalid_argument("<positions><idump> must be positive.");
 
   // idump xyz
   if (lineup["positions"]["xyz"]){

@@ -216,13 +216,10 @@ int main(int argc, char *argv[]){
 
   world->set_constraints();
   world->update_energy_kinetics();
-  stepper->call_forces(); // compute forces at current position
 
-  /* initialize neighbor lists */
-  for (vector<NeighborList*>::iterator it=world->m_neighbors.begin(); it!=world->m_neighbors.end(); ++it){
-    (*it)->build(world->m_x, world->m_bonds);
-  }
-  nlist_updated=true;
+  /* initialize neighbor lists, before the first force evaluation */
+  nlist_updated = world->update_neighbor_lists(0, true);
+  stepper->call_forces(); // compute forces at current position
 
   /* integration */
   for (iter = 0; iter < iparams.itermax; ++iter){
@@ -276,18 +273,12 @@ int main(int argc, char *argv[]){
     // potential energy already updated when calling the forces in the stepper
     world->update_energy_kinetics();
 
-    /* update neighbor list */
-    // Rebuild at a fixed interval. A displacement-based check
-    // (MDWorld::check_neighbor_lists) is not used: it doesn't work well so
-    // far. To make it work I would need to distinguish rskin from rcut. rskin
-    // could be a fraction of rcut. Then yes, re-build when one atom has moved
-    // more than the skin distance.
-    if ( iter % iparams.ineighbor_build == 0 ) {
-      world->update_neighbor_lists(iter);
-      nlist_updated = true;
-    }
-    else
-      nlist_updated = false;
+    /* update neighbor lists */
+    // Rebuild a list when a particle has moved by more than half its skin
+    // since the last build; also rebuild all lists every ineighbor_build
+    // steps if ineighbor_build > 0.
+    bool force_build = (iparams.ineighbor_build > 0) && (iter % iparams.ineighbor_build == 0);
+    nlist_updated = world->update_neighbor_lists(iter, force_build);
   }
 
   /* final dump */

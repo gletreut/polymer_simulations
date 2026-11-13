@@ -192,12 +192,12 @@ void MDWorld::init_velocities(gsl_rng *rng){
 
   // shift and rescale velocities
   if (m_npart == 1){
-    fs = sqrt(m_dim * m_temp / vsqm);
+    fs = sqrt(m_dim * m_temp / m_mass / vsqm);  // <v^2> = dim T/m
       gsl_vector_view v = gsl_matrix_row(m_v, 0);
       linalg_dscal(fs, &v.vector);
   }
   else {
-    fs = sqrt(m_dim * m_temp / vvar);
+    fs = sqrt(m_dim * m_temp / m_mass / vvar);  // <v^2> = dim T/m
     for (size_t n=0; n<m_npart; ++n){
       gsl_vector_view v = gsl_matrix_row(m_v, n);
       // shift
@@ -273,34 +273,22 @@ void MDWorld::update_energy_kinetics(){
   return;
 }
 
-bool MDWorld::check_neighbor_lists(){
+bool MDWorld::update_neighbor_lists(size_t iter, bool force){
   /*
-   * Check neighbor lists
+   * Rebuild the neighbor lists that need it, or all of them if force is true.
+   * Return true if at least one list was rebuilt.
    */
+  bool rebuilt = false;
 
-  bool res=false;
-
-  /* iterate over neighbor lists */
   for (vector<NeighborList*>::iterator it=m_neighbors.begin(); it!=m_neighbors.end(); ++it){
-      bool res_tp = (*it)->check(m_x);
-      res = res || res_tp;
-  }
-
-  return res;
-}
-
-void MDWorld::update_neighbor_lists(size_t iter){
-  /*
-   * Build neighbor lists
-   */
-
-  /* iterate over neighbor lists */
-  for (vector<NeighborList*>::iterator it=m_neighbors.begin(); it!=m_neighbors.end(); ++it){
+    if (force || (*it)->check(m_x)) {
       (*it)->build(m_x, m_bonds);
       (*it)->update_counter(iter);
+      rebuilt = true;
+    }
   }
 
-  return;
+  return rebuilt;
 }
 
 void

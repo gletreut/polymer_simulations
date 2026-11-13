@@ -599,6 +599,7 @@ SoftCore::SoftCore(double A, double sigma, NeighborList *neighbors) :
 
   m_rc = pow(2., 1./6) * sigma;
   m_y = pi / m_rc;
+  m_neighbors->set_range(m_rc);
 }
 
 SoftCore::~SoftCore() {
@@ -695,6 +696,8 @@ PairLJ::PairLJ(double eps, double sigma, double rc_LJ, NeighborList *neighbors) 
   double x6 = x*x*x*x*x*x;
   double x12 = x6*x6;
   m_u0 = m_4eps*(x12 - x6);
+
+  m_neighbors->set_range(m_rc_LJ*m_sigma);
 }
 
 PairLJ::~PairLJ(){
@@ -956,6 +959,8 @@ PolarPairLJ::PolarPairLJ(double eps, double sigma, double rc_LJ, double alpha, N
   m_rc_LJ(rc_LJ),
   m_alpha(alpha)
 {
+  // largest diameter s over orientations a in [-1, 1]
+  m_neighbors->set_range(m_rc_LJ*m_sigma*std::max(1.0, 1.0 + m_alpha));
 }
 
 PolarPairLJ::~PolarPairLJ()
@@ -1007,6 +1012,7 @@ PolarPair48::PolarPair48(double eps, double sigma, double rc, double alpha, Neig
   m_alpha(alpha)
 {
   m_r0 = pow(2., 1./6)*m_sigma;
+  m_neighbors->set_range(m_rc);
 }
 
 PolarPair48::~PolarPair48()
@@ -1060,6 +1066,10 @@ PolarPair48_2site::PolarPair48_2site(double eps_nn, double eps_ww, double eps_nw
   m_r0_nn = pow(2., 1./6)*m_sigma_nn;
   m_r0_ww = pow(2., 1./6)*m_sigma_ww;
   m_r0_nw = pow(2., 1./6)*m_sigma_nw;
+
+  // sites sit at most |rho| from their bead center
+  double rn = fabs(m_rho_n), rw = fabs(m_rho_w);
+  m_neighbors->set_range(std::max(std::max(m_rc_nn + 2.0*rn, m_rc_ww + 2.0*rw), m_rc_nw + rn + rw));
 }
 
 PolarPair48_2site::~PolarPair48_2site()

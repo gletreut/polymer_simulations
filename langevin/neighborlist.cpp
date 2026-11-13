@@ -6,7 +6,7 @@ using namespace std;
 // Neighborlist
 //****************************************************************************
 NeighborList::NeighborList(size_t nmax, double rskin, size_t npart) :
-  m_nmax(nmax), m_rskin(rskin)
+  m_nmax(nmax), m_rskin(rskin), m_rcut(0.)
 {
   m_npair = 0;
   m_iter = 0;
@@ -32,6 +32,21 @@ NeighborList::~NeighborList()
   if (m_xref != nullptr){
     gsl_matrix_free(m_xref);
   }
+}
+
+void
+NeighborList::set_range(double rcut){
+  /*
+   * Register the interaction range of a force field using this list.
+   * The skin rskin - rcut must be positive.
+   */
+  if (!(m_rskin > rcut)) {
+    stringstream msg;
+    msg << "Neighbor list: rskin = " << m_rskin << " must exceed the interaction range " << rcut << ".";
+    throw invalid_argument(msg.str());
+  }
+  if (rcut > m_rcut)
+    m_rcut = rcut;
 }
 
 void
@@ -77,12 +92,11 @@ NeighborList::build(gsl_matrix *x, gsl_spmatrix_uint *bonds){
       linalg_daxpy(-1, &xn.vector, xtp);
       r = linalg_dnrm2(xtp);
       if (r < m_rskin) {
+        if (m_npair == m_nmax)
+          throw length_error("Maximum number of neighbors reached! Increase npair_max.");
         gsl_matrix_uint_set(m_pairs, m_npair, 0, n);
         gsl_matrix_uint_set(m_pairs, m_npair, 1, m);
         m_npair += 1;
-
-        if (m_npair == m_nmax)
-          throw length_error("Maximum number of neighbors reached!");
       }
     }
   }
@@ -96,36 +110,28 @@ NeighborList::build(gsl_matrix *x, gsl_spmatrix_uint *bonds){
 bool
 NeighborList::check(gsl_matrix *x){
   /*
-   * Checks whether the neighbor list needs to be rebuilt.
-   * If one particle has moved past its skin since last build, then do rebuild.
+   * Check whether the neighbor list needs to be rebuilt.
+   * A pair can come closer by at most twice the largest displacement since
+   * the last build, so the list stays complete while
+   *   max_i |x_i - x_i^ref| <= (rskin - rcut)/2.
    */
 
-  bool res = false;
-  double r;
-  gsl_vector *xtp(0);
+  double dmax = 0.;
 
-  // initialize
-  xtp = gsl_vector_calloc(3);
-
-  // iterate over particles
   for (size_t n=0; n<m_xref->size1; ++n) {
-    gsl_vector_view xn = gsl_matrix_row(x, n);
-    gsl_vector_view xn_ref = gsl_matrix_row(m_xref, n);
-
-    gsl_vector_memcpy(xtp, &xn_ref.vector);
-    linalg_daxpy(-1, &xn.vector, xtp);
-    r = linalg_dnrm2(xtp);
-    if ( !(r < m_rskin) ) {
-      res=true;
-      // break;  // do not break, otherwise can't detect explosions
+    double d2 = 0.;
+    for (size_t a=0; a<3; ++a) {
+      double dx = gsl_matrix_get(x, n, a) - gsl_matrix_get(m_xref, n, a);
+      d2 += dx*dx;
     }
-    if (r > m_rmax)
-      throw invalid_argument("Displacement is too large! Increase build frequency or increase rskin!");
+    if (d2 > dmax*dmax)
+      dmax = sqrt(d2);
   }
 
-  /* exit */
-  gsl_vector_free(xtp);
-  return res;
+  if (dmax > m_rmax)
+    throw invalid_argument("Displacement is too large! Decrease the time step or increase rskin!");
+
+  return dmax > 0.5*(m_rskin - m_rcut);
 }
 
 void

@@ -38,7 +38,8 @@ class NeighborList {
     size_t m_npair;
     size_t m_iter, m_iterref;
     size_t m_ibuild_count, m_ibuild_sum;
-    double m_rskin;
+    double m_rskin;               // pairs closer than rskin are listed
+    double m_rcut;                // largest interaction range using this list
     double m_rmax;
     gsl_matrix_uint *m_pairs;
     gsl_matrix *m_xref;
@@ -48,6 +49,7 @@ class NeighborList {
     ~NeighborList();
 
     /* methods */
+    void set_range(double rcut);
     void update_counter(size_t iter);
     void build(gsl_matrix *x, gsl_spmatrix_uint *bonds);
     bool check(gsl_matrix *x);

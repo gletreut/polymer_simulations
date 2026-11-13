@@ -16,7 +16,7 @@ using namespace std;
 //* IntegrationParams
 //****************************************************************************
 IntegrationParams::IntegrationParams() :
-    itermax(0), idump_thermo(1), idump_pos(1), ineighbor_build(10), pos_xyz(true), pos_dat(false), neighbor(false) {
+    itermax(0), idump_thermo(1), idump_pos(1), ineighbor_build(0), pos_xyz(true), pos_dat(false), neighbor(false) {
 
       init();
     }
