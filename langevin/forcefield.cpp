@@ -1004,14 +1004,17 @@ double PolarPairLJ::pair_energy_force(const gsl_vector *xi, const gsl_vector *xj
 //****************************************************************************
 // PolarPair48
 //****************************************************************************
-PolarPair48::PolarPair48(double eps, double sigma, double rc, double alpha, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
+PolarPair48::PolarPair48(double eps, double sigma, double width, double alpha, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
   PolarChains(neighbors, chain_ends),
   m_eps(eps),
   m_sigma(sigma),
-  m_rc(rc),
+  m_width(width),
   m_alpha(alpha)
 {
+  if (!(m_sigma > 0.0 && m_width > 0.0))
+    throw std::invalid_argument("PolarPair48: sigma and width must be positive.");
   m_r0 = pow(2., 1./6)*m_sigma;
+  m_rc = m_r0 + m_width*m_sigma;
   m_neighbors->set_range(m_rc);
 }
 
@@ -1047,7 +1050,7 @@ double PolarPair48::pair_energy_force(const gsl_vector *xi, const gsl_vector *xj
 //****************************************************************************
 PolarPair48_2site::PolarPair48_2site(double eps_nn, double eps_ww, double eps_nw,
     double sigma_nn, double sigma_ww, double sigma_nw,
-    double rc_nn, double rc_ww, double rc_nw,
+    double width_nn, double width_ww, double width_nw,
     double rho_n, double rho_w,
     NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends) :
   PolarChains(neighbors, chain_ends),
@@ -1057,15 +1060,21 @@ PolarPair48_2site::PolarPair48_2site(double eps_nn, double eps_ww, double eps_nw
   m_sigma_nn(sigma_nn),
   m_sigma_ww(sigma_ww),
   m_sigma_nw(sigma_nw),
-  m_rc_nn(rc_nn),
-  m_rc_ww(rc_ww),
-  m_rc_nw(rc_nw),
+  m_width_nn(width_nn),
+  m_width_ww(width_ww),
+  m_width_nw(width_nw),
   m_rho_n(rho_n),
   m_rho_w(rho_w)
 {
+  if (!(m_sigma_nn > 0.0 && m_sigma_ww > 0.0 && m_sigma_nw > 0.0
+        && m_width_nn > 0.0 && m_width_ww > 0.0 && m_width_nw > 0.0))
+    throw std::invalid_argument("PolarPair48_2site: sigma and width must be positive.");
   m_r0_nn = pow(2., 1./6)*m_sigma_nn;
   m_r0_ww = pow(2., 1./6)*m_sigma_ww;
   m_r0_nw = pow(2., 1./6)*m_sigma_nw;
+  m_rc_nn = m_r0_nn + m_width_nn*m_sigma_nn;
+  m_rc_ww = m_r0_ww + m_width_ww*m_sigma_ww;
+  m_rc_nw = m_r0_nw + m_width_nw*m_sigma_nw;
 
   // sites sit at most |rho| from their bead center
   double rn = fabs(m_rho_n), rw = fabs(m_rho_w);

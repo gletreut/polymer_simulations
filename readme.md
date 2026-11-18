@@ -35,9 +35,10 @@ Analysis, for example a contact map: `pixi run python analysis/analyze_trajector
 
 ## Notes
 
-- Polar pair potentials (`PolarPairLJ`, `PolarPair48`, `PolarPair48_2site`) are 2D only. The polarity of a bead is the in-plane normal to its chain, $n = \hat z \times \hat t$. Before November 2026, their forces omitted the dependence of $n$ on the positions of neighboring beads, and the FENE bond force had a wrong $1/r$ factor; results obtained with earlier versions are affected.
-- Cutoffs: `rc` is in units of $\sigma$ for `PairLJ` and `PolarPairLJ`, and absolute for the `*48` potentials.
-- The thermal noise is uniform with the variance required by the fluctuation-dissipation relation. Constraints are applied as projections of positions and velocities.
+- Polar pair potentials (`PolarPairLJ`, `PolarPair48`, `PolarPair48_2site`) are 2D only. The polarity of a bead is the in-plane normal to its chain, $n = \hat z \times \hat t$.
+- Ranges: `rc` is the cutoff in units of $\sigma$ for `PairLJ` and `PolarPairLJ`. The `*48` potentials take instead the well width $w = (r_c - 2^{1/6}\sigma)/\sigma$ (`width`), with the minimum at $2^{1/6}\sigma$: for example, $r_c = 2\sigma$ is $w \approx 0.878$.
+- The thermal noise is uniform with the variance scaled to the value required by the fluctuation-dissipation relation.
+- Constraints are applied as projections of positions and velocities.
 
 ## License
 

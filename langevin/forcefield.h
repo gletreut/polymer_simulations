@@ -316,19 +316,20 @@ class PolarPair48 : public PolarChains {
    * for the human erythrocyte membrane". In: Biophysical journal 102.1 (2012):
    *   U = eps x^4 (x^4 - 2A) for r < rc,  x = (rc - r)/(rc - r0),  r0 = 2^(1/6) sigma,
    *   A = 1 - alpha (1 + a),  a = (n_i - n_j).e_ij / 2.
-   * The cutoff rc is absolute.
+   * The well width w = (rc - r0)/sigma > 0 is the shape parameter: rc = r0 + w sigma.
    */
 
   public:
     /* attributes */
     double m_eps;
     double m_sigma;
+    double m_width;
     double m_r0;
     double m_rc;
     double m_alpha;
 
     /* constructor and destructor */
-    PolarPair48(double eps, double sigma, double rc, double alpha, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
+    PolarPair48(double eps, double sigma, double width, double alpha, NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
     ~PolarPair48();
 
     /* methods */
@@ -341,14 +342,15 @@ class PolarPair48_2site : public PolarChains {
   /*
    * Each bead carries a narrow site at x - rho_n n and a wide site at x + rho_w n.
    * Sites interact by U = eps x^4 (x^4 - 2) for r < rc, x = (rc - r)/(rc - r0),
-   * r0 = 2^(1/6) sigma, with (eps, sigma, rc) depending on the pair of site types.
-   * The cutoffs rc are absolute.
+   * r0 = 2^(1/6) sigma, rc = r0 + w sigma, with (eps, sigma, w) depending on the pair
+   * of site types. The well widths w are in units of sigma; the offsets rho are absolute.
    */
 
   public:
     /* attributes */
     double m_eps_nn, m_eps_ww, m_eps_nw;
     double m_sigma_nn, m_sigma_ww, m_sigma_nw;
+    double m_width_nn, m_width_ww, m_width_nw;
     double m_r0_nn, m_r0_ww, m_r0_nw;
     double m_rc_nn, m_rc_ww, m_rc_nw;
     double m_rho_n, m_rho_w;
@@ -356,7 +358,7 @@ class PolarPair48_2site : public PolarChains {
     /* constructor and destructor */
     PolarPair48_2site(double eps_nn, double eps_ww, double eps_nw,
                 double sigma_nn, double sigma_ww, double sigma_nw,
-                double rc_nn, double rc_ww, double rc_nw,
+                double width_nn, double width_ww, double width_nw,
                 double rho_n, double rho_w,
                 NeighborList* neighbors, std::vector<std::pair<size_t, size_t> > chain_ends);
     ~PolarPair48_2site();

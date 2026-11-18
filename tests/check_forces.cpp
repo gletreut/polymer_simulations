@@ -348,28 +348,30 @@ int main() {
   {
     gsl_matrix *x = random_chain(rng, N, 2, 0.95, vector<double>(1, 2.0));
     NeighborList *nl = all_pairs(x, nobonds);
-    PolarPair48 ff(1.0, 1.0, 2.0, 0.3, nl, chain_ends);
+    const double w48 = 2.0 - pow(2., 1./6);   // rc = 2
+    PolarPair48 ff(1.0, 1.0, w48, 0.3, nl, chain_ends);
     report("PolarPair48", fd_error(wrap(&ff), x, 2));
     set_polarity(&ff, x);
     report("  PolarPair48 (frozen polarity)", fd_error(wrap_frozen_polarity(&ff), x, 2), false);
-    PolarPair48 ff3(1.0, 1.0, 2.0, 0.3, nl, chains3);
+    PolarPair48 ff3(1.0, 1.0, w48, 0.3, nl, chains3);
     report("PolarPair48 (3 chains)", fd_error(wrap(&ff3), x, 2));
-    PolarPair48 ffa(1.0, 1.0, 2.0, 0.8, nl, chain_ends);
+    PolarPair48 ffa(1.0, 1.0, w48, 0.8, nl, chain_ends);
     report("PolarPair48 (alpha = 0.8)", fd_error(wrap(&ffa), x, 2));
     delete nl; gsl_matrix_free(x);
   }
   {
     gsl_matrix *x = random_chain(rng, N, 2, 0.95);
     NeighborList *nl = all_pairs(x, nobonds);
+    const double w2 = 1.5/0.6 - pow(2., 1./6);   // rc = 1.5
     PolarPair48_2site ff(1.0, 0.5, 0.8,     // eps nn, ww, nw
                          0.6, 0.6, 0.6,     // sigma
-                         1.5, 1.5, 1.5,     // rc
+                         w2, w2, w2,        // width
                          0.3, 0.3,          // rho n, w
                          nl, chain_ends);
     report("PolarPair48_2site", fd_error(wrap(&ff), x, 2));
     set_polarity(&ff, x);
     report("  PolarPair48_2site (frozen pol.)", fd_error(wrap_frozen_polarity(&ff), x, 2), false);
-    PolarPair48_2site ff3(1.0, 0.5, 0.8, 0.6, 0.6, 0.6, 1.5, 1.5, 1.5, 0.3, 0.3, nl, chains3);
+    PolarPair48_2site ff3(1.0, 0.5, 0.8, 0.6, 0.6, 0.6, w2, w2, w2, 0.3, 0.3, nl, chains3);
     report("PolarPair48_2site (3 chains)", fd_error(wrap(&ff3), x, 2));
     delete nl; gsl_matrix_free(x);
   }
@@ -384,7 +386,15 @@ int main() {
     NeighborList nl(100, 1.0e3, 10);
     for (const auto &b : bad)
       expect_invalid_argument(string("PolarPair48 bad ends: ") + b.first,
-                              [&] { PolarPair48 ff(1.0, 1.0, 2.0, 0.3, &nl, b.second); });
+                              [&] { PolarPair48 ff(1.0, 1.0, 0.9, 0.3, &nl, b.second); });
+    const ChainEnds ends = {{0, 9}};
+    expect_invalid_argument("PolarPair48 width = 0",
+                            [&] { PolarPair48 ff(1.0, 1.0, 0.0, 0.3, &nl, ends); });
+    expect_invalid_argument("PolarPair48 sigma = 0",
+                            [&] { PolarPair48 ff(1.0, 0.0, 0.9, 0.3, &nl, ends); });
+    expect_invalid_argument("PolarPair48_2site width < 0",
+                            [&] { PolarPair48_2site ff(1.0, 1.0, 1.0, 0.6, 0.6, 0.6, 1.0, -1.0, 1.0,
+                                                       0.3, 0.3, &nl, ends); });
   }
 
   // --- constraints after one Lang_VVerlet step

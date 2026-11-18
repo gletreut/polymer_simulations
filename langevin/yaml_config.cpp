@@ -386,16 +386,20 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
 
     // PolarPair48
     else if (key == "PolarPair48") {
-      double eps, sigma, rc, rskin, alpha;
+      double eps, sigma, width, rskin, alpha;
       size_t npair_max;
       NeighborList *nneighbor(0);
       cout << "Adding force field of type: " << key << endl;
       cout << "Parameters:" << endl;
       cout << FNode << endl;
+      if (FNode["rc"])
+        throw invalid_argument(key + ": <rc> is replaced by <width> = (rc - 2^(1/6) sigma)/sigma.");
       eps = FNode["eps"].as<double>();
       sigma = FNode["sigma"].as<double>();
       alpha = FNode["alpha"].as<double>();
-      rc = FNode["rc"].as<double>();
+      if (! FNode["width"])
+        throw invalid_argument(key + ": missing key <width>.");
+      width = FNode["width"].as<double>();
       rskin = FNode["rskin"].as<double>();
       npair_max = FNode["npair_max"].as<size_t>();
       nneighbor = new NeighborList(npair_max, rskin, world->m_npart);
@@ -403,7 +407,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       vector<pair<size_t, size_t> > chain_ends_list = parse_chain_ends(FNode["chain_ends"]);
 
       world->m_neighbors.push_back(nneighbor);
-      ffield = new PolarPair48(eps, sigma, rc, alpha, nneighbor, chain_ends_list);
+      ffield = new PolarPair48(eps, sigma, width, alpha, nneighbor, chain_ends_list);
       world->m_ffields.push_back(ffield);
     }
 
@@ -411,7 +415,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
     else if (key == "PolarPair48_2site") {
       double eps_nn, eps_ww, eps_nw;
       double sigma_nn, sigma_ww, sigma_nw;
-      double rc_nn, rc_ww, rc_nw;
+      double width_nn, width_ww, width_nw;
       double rho_n, rho_w;
       double rskin;
       size_t npair_max;
@@ -451,8 +455,10 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       sigma_ww = entry_value[1].as<double>();
       sigma_nw = entry_value[2].as<double>();
 
-      // cutoff distances
-      entry_key = "rc";
+      // well widths, in units of sigma
+      if (FNode["rc"])
+        throw invalid_argument(key + ": <rc> is replaced by <width> = (rc - 2^(1/6) sigma)/sigma.");
+      entry_key = "width";
       entry_value = FNode[entry_key];
       if (! entry_value ) {
         throw invalid_argument("Missing key: " + entry_key);
@@ -461,9 +467,9 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
         cout << entry_value;
         throw invalid_argument("<" + entry_key + "> must be a sequence.");
       }
-      rc_nn = entry_value[0].as<double>();
-      rc_ww = entry_value[1].as<double>();
-      rc_nw = entry_value[2].as<double>();
+      width_nn = entry_value[0].as<double>();
+      width_ww = entry_value[1].as<double>();
+      width_nw = entry_value[2].as<double>();
 
       // radius to narrow and wide sites
       entry_key = "rho";
@@ -490,7 +496,7 @@ void yaml_config::init_forcefields(YAML::Node config, MDWorld* &world) {
       world->m_neighbors.push_back(nneighbor);
       ffield = new PolarPair48_2site(eps_nn, eps_ww, eps_nw,
           sigma_nn, sigma_ww, sigma_nw,
-          rc_nn, rc_ww, rc_nw,
+          width_nn, width_ww, width_nw,
           rho_n, rho_w,
           nneighbor, chain_ends_list);
       world->m_ffields.push_back(ffield);
