@@ -10,8 +10,6 @@ authors:
 contributors:
   - family-names: "Avalos"
     given-names: "Oscar"
-version: "1.0.0"
-date-released: "2026-11-12"
 license: MIT
 repository-code: "https://github.com/gletreut/polymer_simulations"
 keywords:
