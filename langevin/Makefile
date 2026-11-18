@@ -2,7 +2,6 @@ LINLIBS = GSL
 CXXFLAGS := -std=c++17 -O3 -Wall -Wextra -g
 DEPFLAGS := -MMD -MP
 LDLIBS := -lm
-LDFLAGS :=
 ifeq ($(LINLIBS), LAPACK)
 CXXFLAGS += -DLAPACK
 LDLIBS += -lgsl -llapacke -lcblas -llapack -lblas -lgfortran

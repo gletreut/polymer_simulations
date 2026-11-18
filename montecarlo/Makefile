@@ -1,7 +1,6 @@
 CXXFLAGS := -std=c++17 -O3 -Wall -Wextra -g
 DEPFLAGS := -MMD -MP
 LDLIBS := -lgsl -lgslcblas -lm
-LDFLAGS :=
 SRC = main.cpp model.cpp geometry.cpp utils.cpp
 OBJS = $(SRC:.cpp=.o)
 PROG = ../bin/simu_montecarlo
